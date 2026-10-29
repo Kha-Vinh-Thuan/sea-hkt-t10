@@ -1,0 +1,82 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  odoo:
+    build: .
+    image: t10-odoo
+    depends_on: [db]
+    command: ["--dev=reload,xml,qweb"]
+    ports:
+      - "8069:8069"
+    environment:
+      HOST: db
+      USER: odoo
+      PASSWORD: odoo
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
+      T10_API_URL: ${T10_API_URL:-http://ml:8000}
+      T10_API_KEY: ${T10_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - odoo-data:/var/lib/odoo
+      # ponytail: core hr* modules forked; mounted over core path (core shadows /mnt/extra-addons)
+      - ./addons/hr:/usr/lib/python3/dist-packages/odoo/addons/hr
+      - ./addons/hr_address_extended:/usr/lib/python3/dist-packages/odoo/addons/hr_address_extended
+      - ./addons/hr_attendance:/usr/lib/python3/dist-packages/odoo/addons/hr_attendance
+      - ./addons/hr_calendar:/usr/lib/python3/dist-packages/odoo/addons/hr_calendar
+      - ./addons/hr_calendar_google:/usr/lib/python3/dist-packages/odoo/addons/hr_calendar_google
+      - ./addons/hr_expense:/usr/lib/python3/dist-packages/odoo/addons/hr_expense
+      - ./addons/hr_fleet:/usr/lib/python3/dist-packages/odoo/addons/hr_fleet
+      - ./addons/hr_gamification:/usr/lib/python3/dist-packages/odoo/addons/hr_gamification
+      - ./addons/hr_holidays:/usr/lib/python3/dist-packages/odoo/addons/hr_holidays
+      - ./addons/hr_holidays_attendance:/usr/lib/python3/dist-packages/odoo/addons/hr_holidays_attendance
+      - ./addons/hr_livechat:/usr/lib/python3/dist-packages/odoo/addons/hr_livechat
+      - ./addons/hr_maintenance:/usr/lib/python3/dist-packages/odoo/addons/hr_maintenance
+      - ./addons/hr_presence:/usr/lib/python3/dist-packages/odoo/addons/hr_presence
+      - ./addons/hr_recruitment:/usr/lib/python3/dist-packages/odoo/addons/hr_recruitment
+      - ./addons/hr_recruitment_skills:/usr/lib/python3/dist-packages/odoo/addons/hr_recruitment_skills
+      - ./addons/hr_recruitment_sms:/usr/lib/python3/dist-packages/odoo/addons/hr_recruitment_sms
+      - ./addons/hr_recruitment_survey:/usr/lib/python3/dist-packages/odoo/addons/hr_recruitment_survey
+      - ./addons/hr_skills:/usr/lib/python3/dist-packages/odoo/addons/hr_skills
+      - ./addons/hr_skills_event:/usr/lib/python3/dist-packages/odoo/addons/hr_skills_event
+      - ./addons/hr_skills_slides:/usr/lib/python3/dist-packages/odoo/addons/hr_skills_slides
+      - ./addons/hr_skills_survey:/usr/lib/python3/dist-packages/odoo/addons/hr_skills_survey
+      - ./addons/hr_timesheet:/usr/lib/python3/dist-packages/odoo/addons/hr_timesheet
+      - ./addons/hr_timesheet_attendance:/usr/lib/python3/dist-packages/odoo/addons/hr_timesheet_attendance
+      - ./addons/hr_work_entry:/usr/lib/python3/dist-packages/odoo/addons/hr_work_entry
+      - ./addons/t10_ai_interview:/mnt/extra-addons/t10_ai_interview
+      - ./addons/rag_interview_agent:/mnt/extra-addons/rag_interview_agent
+
+  ml:
+    build: ./ml
+    image: t10-ml
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ml:/ml
+    environment:
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      T10_ADMIN_KEY: ${T10_ADMIN_KEY:-}
+      T10_PUBLIC_URL: ${T10_PUBLIC_URL:-http://localhost:8000}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  db-data:
+  odoo-data:
