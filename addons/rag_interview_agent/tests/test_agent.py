@@ -9,7 +9,8 @@ _spec.loader.exec_module(agent)
 
 
 def test_chunks_keep_long_text_and_sources():
-    items = agent.build_index({'company': 'Company context ' * 100, 'cv': 'CV claim'}, 'embed')
+    with patch.object(agent, 'embed', side_effect=lambda texts, model: [[1.0]] * len(texts)):
+        items = agent.build_index({'company': 'Company context ' * 100, 'cv': 'CV claim'}, 'embed')
     assert items and {x['source'] for x in items} == {'company', 'cv'}
 
 
@@ -23,16 +24,35 @@ def test_retrieve_keeps_each_source():
     assert {x['source'] for x in got} == {'company', 'job', 'cv'}
 
 
-def test_next_turn_enforces_question_budget_and_json():
-    with patch.object(agent, 'embed', return_value=[[1.0, 0.0]]), \
-         patch.object(agent, 'chat', return_value={
-             'score': 8, 'evidence': 'e', 'next_question': '**next?**', 'done': False, 'flags': []}):
-        got = agent.next_turn({'turn_model': 'turn', 'embed_model': 'embed'},
-                              {'job': 'Dev', 'company': 'Acme', 'max_questions': 2},
-                              [{'source': 'job', 'text': 'JD', 'vec': [1.0, 0.0]}],
-                              [{'question': 'q1', 'answer': 'a1', 'score': 8}], 'q1', 'a2')
-    assert got['done'] is True
-    assert got['question'] == 'next?'
+CFG = {'turn_model': 'turn', 'embed_model': 'embed'}
+INDEX = [{'source': 'job', 'text': 'JD', 'vec': [1.0, 0.0]}]
+
+
+def _turn(reply, history, asked, max_topics=3, max_probes=2):
+    with patch.object(agent, 'embed', return_value=[[1.0, 0.0]]), patch.object(agent, 'chat', return_value=reply):
+        return agent.next_turn(CFG, {'job': 'Dev', 'company': 'Acme', 'max_topics': max_topics,
+                                     'max_probes': max_probes}, INDEX, history, asked, 'answer')
+
+
+def test_probe_stays_on_topic_and_does_not_use_topic_budget():
+    reply = {'score': 6, 'evidence': 'e', 'action': 'probe', 'topic': 'x', 'next_question': '**deeper?**', 'flags': []}
+    got = _turn(reply, [], {'question': 'q1', 'topic': 'Redis', 'topic_no': 1})
+    assert (got['action'], got['topic'], got['topic_no'], got['done']) == ('probe', 'Redis', 1, False)
+    assert got['question'] == 'deeper?'
+
+
+def test_probe_budget_forces_new_topic():
+    history = [{'question': 'q', 'answer': 'a', 'topic': 'Redis', 'topic_no': 1}] * 2
+    reply = {'score': 6, 'evidence': 'e', 'action': 'probe', 'topic': 'PostgreSQL', 'next_question': 'q?', 'flags': []}
+    got = _turn(reply, history, {'question': 'q3', 'topic': 'Redis', 'topic_no': 1})
+    assert (got['action'], got['topic'], got['topic_no']) == ('new_topic', 'PostgreSQL', 2)
+
+
+def test_topic_budget_forces_end():
+    history = [{'question': 'q', 'answer': 'a', 'topic': 't', 'topic_no': n} for n in (1, 2)]
+    reply = {'score': 6, 'evidence': 'e', 'action': 'new_topic', 'topic': 'y', 'next_question': 'q?', 'flags': []}
+    got = _turn(reply, history, {'question': 'q', 'topic': 't', 'topic_no': 3}, max_probes=0)
+    assert got['done'] is True and got['action'] == 'end'
 
 
 def test_realtime_secret_never_exposes_api_key():

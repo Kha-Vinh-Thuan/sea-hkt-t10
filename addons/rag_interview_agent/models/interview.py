@@ -14,9 +14,9 @@ _logger = logging.getLogger(__name__)
 
 # ponytail: model ids live in System Parameters (rag_interview.*) so they can be swapped without a release.
 DEFAULTS = {
-    'turn_model': 'anthropic/claude-sonnet-5.5',      # live turn: strong reasoning at voice-friendly latency
-    'report_model': 'anthropic/claude-opus-5.5',      # offline report: best reasoning, latency irrelevant
-    'embed_model': 'baai/bge-m3',                     # multilingual (Vietnamese) retrieval, 1024 dims, cheap
+    'turn_model': 'openai/gpt-6.1-sol',               # live turn: sharpest follow-ups at voice-friendly latency
+    'report_model': 'openai/gpt-6-astra',             # offline report: flagship reasoning, latency irrelevant
+    'embed_model': 'openai/text-embedding-3-large',   # multilingual retrieval, 3072 dims
     'realtime_model': 'gpt-realtime',
     'realtime_voice': 'marin',
     'transcribe_model': 'gpt-4o-transcribe',
@@ -73,10 +73,15 @@ class RagInterview(models.Model):
     url = fields.Char(compute='_compute_url')
     state = fields.Selection([('ready', 'Ready'), ('running', 'Interviewing'), ('done', 'Writing Report'),
                               ('reported', 'Reported'), ('error', 'Error')], default='ready', tracking=True)
-    max_questions = fields.Integer(default=8)
+    max_topics = fields.Integer("Max Topics", default=7,
+                                help="Distinct topics the agent may open. Follow-up questions do not count.")
+    max_probes = fields.Integer("Max Follow-ups per Topic", default=1,
+                                help="How many times the agent may dig deeper into one topic before moving on.")
     docs = fields.Json(copy=False)      # {source: full text}: what the report model reads
     index = fields.Json(copy=False)     # [{source, text, vec}]: what retrieval reads
     pending_question = fields.Text(copy=False)
+    pending_topic = fields.Char(copy=False)
+    pending_topic_no = fields.Integer(copy=False)
     turn_ids = fields.One2many('rag.interview.turn', 'interview_id', "Transcript")
     flags = fields.Char(copy=False)
     consent_at = fields.Datetime(copy=False)
@@ -87,6 +92,9 @@ class RagInterview(models.Model):
     strengths = fields.Text(copy=False)
     concerns = fields.Text(copy=False)
     cv_claims = fields.Text("CV Claims Checked", copy=False)
+    cv_consistency = fields.Selection([('consistent', 'Consistent'), ('minor_gaps', 'Minor Gaps'),
+                                       ('inconsistent', 'Inconsistent')], "CV Consistency", copy=False, tracking=True)
+    screening = fields.Text("Screening Answers", copy=False)
     error = fields.Text(copy=False)
 
     @api.depends('applicant_id', 'job_id')
@@ -161,10 +169,16 @@ class RagInterview(models.Model):
 
     def _ctx(self):
         return {'job': self.job_id.name or '', 'company': self.company_id.name or '',
-                'max_questions': max(2, min(20, self.max_questions))}
+                'max_topics': max(1, min(12, self.max_topics)), 'max_probes': max(0, min(6, self.max_probes))}
 
     def _transcript(self):
-        return [{'question': t.question, 'answer': t.answer, 'score': t.score} for t in self.turn_ids]
+        return [{'question': t.question, 'answer': t.answer, 'score': t.score, 'topic': t.topic,
+                 'topic_no': t.topic_no} for t in self.turn_ids]
+
+    def _pending(self, res):
+        return {'pending_question': False if res['done'] else res['question'],
+                'pending_topic': False if res['done'] else res['topic'],
+                'pending_topic_no': 0 if res['done'] else res['topic_no']}
 
     def _start(self):
         """Opening question, or the pending one again after a page reload."""
@@ -175,7 +189,7 @@ class RagInterview(models.Model):
         if self.state != 'ready':
             raise UserError(_("closed"))
         res = agent.next_turn(self._turn_cfg(), self._ctx(), self.index, [])
-        self.write({'state': 'running', 'pending_question': res['question'], 'consent_at': fields.Datetime.now()})
+        self.write(dict(self._pending(res), state='running', consent_at=fields.Datetime.now()))
         return {'question': res['question'], 'done': res['done']}
 
     def _turn_cfg(self):
@@ -188,14 +202,15 @@ class RagInterview(models.Model):
         if self.state != 'running' or not self.pending_question:
             raise UserError(_("closed"))
         answer = answer[:agent.MAX_ANSWER]
-        res = agent.next_turn(self._turn_cfg(), self._ctx(), self.index, self._transcript(),
-                              self.pending_question, answer)
+        asked = {'question': self.pending_question, 'topic': self.pending_topic or '',
+                 'topic_no': self.pending_topic_no}
+        res = agent.next_turn(self._turn_cfg(), self._ctx(), self.index, self._transcript(), asked, answer)
         self.env['rag.interview.turn'].create({
             'interview_id': self.id, 'question': self.pending_question, 'answer': answer,
+            'topic': asked['topic'], 'topic_no': asked['topic_no'],
             'score': res['score'], 'evidence': res['evidence'], 'flags': ', '.join(res['flags'])})
         flags = sorted(set(filter(None, (self.flags or '').split(', '))) | set(res['flags']))
-        self.write({'pending_question': False if res['done'] else res['question'], 'flags': ', '.join(flags),
-                    'state': 'done' if res['done'] else 'running'})
+        self.write(dict(self._pending(res), flags=', '.join(flags), state='done' if res['done'] else 'running'))
         if res['done']:
             self.env.ref('rag_interview_agent.ir_cron_rag_report')._trigger()
         return {'question': res['question'], 'done': res['done']}
@@ -216,7 +231,9 @@ class RagInterview(models.Model):
                      'recommendation': rep['recommendation'], 'summary': rep['summary'],
                      'strengths': '\n'.join(f"- {x}" for x in rep['strengths']),
                      'concerns': '\n'.join(f"- {x}" for x in rep['concerns']),
-                     'cv_claims': '\n'.join(f"- {x}" for x in rep['cv_claims'])})
+                     'cv_claims': '\n'.join(f"- {x}" for x in rep['cv_claims']),
+                     'cv_consistency': rep['cv_consistency'],
+                     'screening': '\n'.join(f"- {x}" for x in rep['screening'])})
             s.applicant_id.message_post(body=_("AI interview: %(r)s, %(s)s/100. %(sum)s",
                                                r=dict(s._fields['recommendation'].selection)[rep['recommendation']],
                                                s=rep['score'], sum=rep['summary']))
@@ -232,6 +249,8 @@ class RagInterviewTurn(models.Model):
     _order = 'id'
 
     interview_id = fields.Many2one('rag.interview', required=True, ondelete='cascade', index=True)
+    topic = fields.Char()
+    topic_no = fields.Integer("Topic #")
     question = fields.Text(required=True)
     answer = fields.Text()
     score = fields.Integer("Score /10")

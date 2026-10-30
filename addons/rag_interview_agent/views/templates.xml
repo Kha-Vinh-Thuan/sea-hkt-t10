@@ -2,11 +2,11 @@
 <odoo>
     <template id="interview_page">
         &lt;!DOCTYPE html&gt;
-        <html lang="vi">
+        <html lang="en">
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-                <title>Phỏng vấn AI</title>
+                <title>AI Interview</title>
                 <style>
                     :root { --bg:#f6f7fb; --card:#fff; --text:#1f2330; --muted:#6b7080; --accent:#714b67; --border:#e3e5ec; --rec:#d23f3f; }
                     @media (prefers-color-scheme: dark) { :root { --bg:#14151a; --card:#1d1f26; --text:#e8e9ee; --muted:#9a9eab; --accent:#c69bbb; --border:#2c2f38; } }
@@ -33,8 +33,8 @@
             <body>
                 <main>
                     <t t-if="not open">
-                        <div class="card"><h2>Đường dẫn không còn hiệu lực</h2>
-                            <p class="muted">Buổi phỏng vấn đã kết thúc hoặc đường dẫn không đúng.</p></div>
+                        <div class="card"><h2>This link is no longer valid</h2>
+                            <p class="muted">The interview has ended or the link is incorrect.</p></div>
                     </t>
                     <t t-else="">
                         <div class="card">
@@ -42,21 +42,21 @@
                             <p class="muted" t-esc="session.company_id.name"/>
                         </div>
                         <div class="card" id="consent">
-                            <h2>Trước khi bắt đầu</h2>
-                            <p>Buổi phỏng vấn do trợ lý AI thực hiện bằng giọng nói. Giọng nói và câu trả lời của bạn được gửi tới nhà cung cấp AI (OpenAI, OpenRouter) để xử lý và được lưu lại cho đội tuyển dụng. Quyết định cuối cùng do con người đưa ra.</p>
-                            <p class="muted">Nói tự nhiên; ngừng khoảng 2 giây hoặc bấm "Tôi trả lời xong" khi kết thúc câu trả lời.</p>
-                            <label><input type="checkbox" id="agree"/> <span>Tôi đã hiểu và đồng ý tham gia phỏng vấn</span></label>
+                            <h2>Before you start</h2>
+                            <p>This is a voice interview run by an AI assistant. Your voice and answers are sent to AI providers (OpenAI, OpenRouter) for processing and stored for the recruiting team. The final decision is made by a human.</p>
+                            <p class="muted">Speak naturally; pause for a few seconds or press "I'm done" when you finish an answer.</p>
+                            <label><input type="checkbox" id="agree"/> <span>I understand and agree to take part in this interview</span></label>
                             <p class="err" id="blocker" role="alert"></p>
-                            <button id="start" disabled="disabled">Bật micro và bắt đầu</button>
+                            <button id="start" disabled="disabled">Turn on microphone and start</button>
                         </div>
                         <div class="card ai" id="stage" hidden="hidden">
                             <div class="orb" id="orb" aria-hidden="true"></div>
                             <div id="question" aria-live="polite"></div>
                             <div id="heard" aria-live="polite"></div>
                             <p class="muted" id="status"></p>
-                            <button id="done" disabled="disabled">Tôi trả lời xong</button>
+                            <button id="done" disabled="disabled">I'm done</button>
                         </div>
-                        <script src="/rag_interview_agent/static/src/interview.js"></script>
+                        <!-- ponytail: bump ?v= after editing interview.js, browsers cache static files for 7 days --><script src="/rag_interview_agent/static/src/interview.js?v=3"></script>
                     </t>
                 </main>
             </body>

@@ -13,16 +13,20 @@
     };
     const status = (text, mode = '') => { $('status').textContent = text; $('orb').className = 'orb ' + mode; };
 
-    let pc, dc, answer = '', speaking = false, finished = false, busy = false;
+    let pc, dc, answer = '', speaking = false, finished = false, busy = false, speechTimer;
+    const submitAfterPause = () => { clearTimeout(speechTimer); speechTimer = setTimeout(submit, 3500); };
 
     const say = (text) => new Promise((resolve) => {
-        speaking = true; status('Đang nói...', 'talk');
+        speaking = true; status('Speaking...', 'talk');
         $('question').textContent = text;
         say.done = resolve;
-        // Out-of-band instructions: the voice reads exactly this text, nothing is added to its own memory.
+        // Out-of-band, empty input: the voice sees only this text, never the candidate's audio, so it cannot drift
+        // into the candidate's language.
         dc.send(JSON.stringify({type: 'response.create', response: {
-            conversation: 'none', output_modalities: ['audio'],
-            instructions: `Đọc nguyên văn, giọng tự nhiên, không thêm bớt chữ nào:\n${text}`,
+            conversation: 'none', input: [], output_modalities: ['audio'],
+            instructions: 'Speak English only, with a natural American English accent. Read the following text aloud '
+                + `exactly as written, word for word, and add nothing:
+${text}`,
         }}));
     });
     // Audio keeps playing a moment after the response is generated: wait for the buffer to drain.
@@ -31,19 +35,19 @@
 
     const listen = () => {
         answer = ''; $('heard').textContent = '';
-        status('Mời bạn trả lời, mình đang nghe...', 'listen');
+        status('Your turn, I am listening...', 'listen');
         $('done').disabled = false;
     };
 
     const handle = async (res) => {
-        if (res.error === 'closed') return end('Buổi phỏng vấn đã kết thúc.');
+        if (res.error === 'closed') return end('The interview has ended.');
         if (res.error === 'busy') return;
         if (res.error) {
-            await say('Xin lỗi, kết nối vừa bị gián đoạn. Bạn nói lại câu trả lời giúp mình nhé.');
+            await say('Sorry, the connection dropped. Could you please repeat your answer?');
             return listen();
         }
         await say(res.question);
-        if (res.done) return end('Cảm ơn bạn! Buổi phỏng vấn đã kết thúc, bạn có thể đóng trang này.');
+        if (res.done) return end('Thank you! The interview is over, you can close this page.');
         listen();
     };
 
@@ -51,7 +55,7 @@
         const text = answer.trim();
         if (busy || speaking || finished || !text) return;
         busy = true; $('done').disabled = true;
-        status('Đang suy nghĩ...');
+        status('Thinking...');
         try { await handle(await rpc('answer', {text})); } finally { busy = false; }
     };
     $('done').addEventListener('click', submit);
@@ -63,8 +67,7 @@
             // server VAD closed a speech segment; one answer can span several segments, so pause-to-send is ours
             answer += (ev.transcript || '') + ' ';
             $('heard').textContent = answer.trim();
-            clearTimeout(onEvent.t);
-            onEvent.t = setTimeout(submit, 2500);
+            submitAfterPause();
         } else if (ev.type === 'error') console.warn('realtime', ev.error);
     };
 
@@ -77,12 +80,16 @@
     $('start').addEventListener('click', async () => {
         $('start').disabled = true; $('blocker').textContent = '';
         let mic;
-        try { mic = await navigator.mediaDevices.getUserMedia({audio: true}); } catch {
-            $('blocker').textContent = 'Cần cho phép micro để phỏng vấn.'; $('start').disabled = false; return;
+        try {
+            mic = await navigator.mediaDevices.getUserMedia({audio: {
+                channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true,
+            }});
+        } catch {
+            $('blocker').textContent = 'Microphone access is required for the interview.'; $('start').disabled = false; return;
         }
         const voice = await rpc('voice');
         if (voice.error) {
-            $('blocker').textContent = voice.error === 'closed' ? 'Buổi phỏng vấn đã kết thúc.' : `Không kết nối được dịch vụ giọng nói: ${voice.detail || 'vui lòng thử lại.'}`;
+            $('blocker').textContent = voice.error === 'closed' ? 'The interview has ended.' : `Could not connect to the voice service: ${voice.detail || 'please try again.'}`;
             $('start').disabled = false; return;
         }
         pc = new RTCPeerConnection();
@@ -96,11 +103,11 @@
             method: 'POST', body: pc.localDescription.sdp,
             headers: {Authorization: `Bearer ${voice.secret}`, 'Content-Type': 'application/sdp'},
         });
-        if (!sdp.ok) { $('blocker').textContent = 'Không kết nối được dịch vụ giọng nói.'; $('start').disabled = false; return; }
+        if (!sdp.ok) { $('blocker').textContent = 'Could not connect to the voice service.'; $('start').disabled = false; return; }
         await pc.setRemoteDescription({type: 'answer', sdp: await sdp.text()});
         await new Promise((r) => (dc.readyState === 'open' ? r() : dc.addEventListener('open', r, {once: true})));
         $('consent').hidden = true; $('stage').hidden = false;
-        status('Đang chuẩn bị câu hỏi...');
+        status('Preparing the first question...');
         busy = true;
         try { await handle(await rpc('start')); } finally { busy = false; }
     });
