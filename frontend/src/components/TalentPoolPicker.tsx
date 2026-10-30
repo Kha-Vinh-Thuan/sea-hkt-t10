@@ -1,8 +1,9 @@
-// Talent pools in the applicant drawer: chips for the pools the applicant is in (delete = remove), and an
+// Talent pools on the applicant page: chips for the pools the applicant is in (delete = remove), and an
 // "Add to pool" select listing the others.
 import { useCallback, useEffect, useState } from 'react'
 import { Box, Chip, MenuItem, Stack, TextField } from '@mui/material'
 import { api, type TalentPool } from '../api'
+import { t } from '../i18n'
 
 type Props = { applicantId: number; onError: (message: string) => void; onChanged: () => void }
 
@@ -29,12 +30,12 @@ export default function TalentPoolPicker({ applicantId, onError, onChanged }: Pr
     <Box>
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1, mb: memberOf.length ? 1 : 0 }}>
         {pools.filter((p) => memberOf.includes(p.id)).map((p) => (
-          <Chip key={p.id} size="small" color="secondary" label={`Pool: ${p.name}`}
+          <Chip key={p.id} size="small" color="secondary" label={t('Pool: {name}', { name: p.name })}
             onDelete={() => change(() => api.removePoolMember(p.id, applicantId))} />
         ))}
       </Stack>
       {others.length > 0 && (
-        <TextField select size="small" fullWidth label="Add to pool" value=""
+        <TextField select size="small" fullWidth label={t('Add to pool')} value=""
           onChange={(e) => change(() => api.addPoolMember(Number(e.target.value), applicantId))}>
           {others.map((p) => <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>)}
         </TextField>

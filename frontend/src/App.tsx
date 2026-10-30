@@ -1,11 +1,12 @@
 // Picks the page from the URL and the signed-in role: /careers/*, /book/:token and /interview/:token are public
 // (job board, candidate picks an interview time, candidate accepts / declines); staff need a login.
-// Interviewers only get their interviews; admins can switch to the Users / Email templates pages; everyone else gets the board.
+// Interviewers only get their interviews; admins also get the Users / Email templates pages; everyone else the board tabs.
 // ponytail: plain links + pathname switch, no router; add react-router when pages need nested layouts.
 import { useCallback, useEffect, useState } from 'react'
 import { Alert, Box } from '@mui/material'
+import { t, useLang } from './i18n'
 import { api, session, UnauthorizedError, type Me, type UserBrief } from './api'
-import UserBar, { type StaffPage } from './components/UserBar'
+import NavBar, { type StaffPage } from './components/NavBar'
 import BoardPage from './pages/BoardPage'
 import BookingPage from './pages/BookingPage'
 import CareersPage from './pages/CareersPage'
@@ -21,9 +22,9 @@ const GOOGLE_RESULT_TEXT: Record<string, string> = {
   error: 'Google Calendar could not be connected, please try again.',
 }
 
-export default function App() {
+function Screens() {
   const [user, setUser] = useState<UserBrief | Me | null>(() => (session.token() ? session.user() : null))
-  const [page, setPage] = useState<StaffPage>('board')
+  const [page, setPage] = useState<StaffPage>('pipeline')
   // Google's consent screen sends the browser back to /?google=connected|denied|error.
   const [googleResult] = useState(() => new URLSearchParams(window.location.search).get('google'))
   useEffect(() => { if (googleResult) window.history.replaceState(null, '', '/') }, [googleResult])
@@ -31,7 +32,7 @@ export default function App() {
   function signOut() {
     session.clear()
     setUser(null)
-    setPage('board')
+    setPage('pipeline')
   }
 
   // request() already cleared the stored session on a 401; just drop back to the login page.
@@ -55,11 +56,11 @@ export default function App() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <UserBar user={user} page={page} onPage={setPage} onSignOut={signOut} onGoogleChanged={refreshMe}
+      <NavBar user={user} page={page} onPage={setPage} onSignOut={signOut} onGoogleChanged={refreshMe}
         onError={(e) => { onError(e); window.alert(e.message) }} />
       {googleResult && GOOGLE_RESULT_TEXT[googleResult] && (
         <Alert severity={googleResult === 'connected' ? 'success' : 'warning'} sx={{ m: 1 }}>
-          {GOOGLE_RESULT_TEXT[googleResult]}
+          {t(GOOGLE_RESULT_TEXT[googleResult])}
         </Alert>
       )}
       {user.role === 'interviewer' ? (
@@ -69,8 +70,14 @@ export default function App() {
       ) : user.role === 'admin' && page === 'templates' ? (
         <Box sx={{ p: 2 }}><MailTemplatesPage onError={onError} /></Box>
       ) : (
-        <BoardPage onSignedOut={signOut} />
+        <BoardPage tab={page === 'users' || page === 'templates' ? 'pipeline' : page} onTab={setPage} onSignedOut={signOut} />
       )}
     </Box>
   )
+}
+
+// Subscribing here re-renders the whole tree (nothing is memoised) when the language changes, keeping page state.
+export default function App() {
+  useLang()
+  return <Screens />
 }

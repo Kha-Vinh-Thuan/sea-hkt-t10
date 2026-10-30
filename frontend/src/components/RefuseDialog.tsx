@@ -4,6 +4,7 @@ import {
   Alert, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, TextField,
 } from '@mui/material'
 import { api, type RefuseReason, type RefuseReasonOption } from '../api'
+import { t } from '../i18n'
 
 type Props = {
   applicantId: number
@@ -39,23 +40,23 @@ export default function RefuseDialog({ applicantId, open, onClose, onRefused }: 
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Refuse applicant</DialogTitle>
+      <DialogTitle>{t('Refuse applicant')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
-          <TextField select label="Reason" value={reason} onChange={(e) => setReason(e.target.value as RefuseReason)}>
+          <TextField select label={t('Reason')} value={reason} onChange={(e) => setReason(e.target.value as RefuseReason)}>
             {/* Keeps the default selectable before the list arrives, so MUI doesn't warn about an unknown value. */}
             {(reasons.length ? reasons : [{ value: reason, label: '…' }]).map((r) => (
               <MenuItem key={r.value} value={r.value}>{r.label}</MenuItem>
             ))}
           </TextField>
-          <FormControlLabel label="Send refusal email to the candidate"
+          <FormControlLabel label={t('Send refusal email to the candidate')}
             control={<Checkbox checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />} />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button color="error" variant="contained" onClick={submit} disabled={busy || !reasons.length}>Refuse</Button>
+        <Button onClick={onClose}>{t('Cancel')}</Button>
+        <Button color="error" variant="contained" onClick={submit} loading={busy} disabled={!reasons.length}>{t('Refuse')}</Button>
       </DialogActions>
     </Dialog>
   )

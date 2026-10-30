@@ -4,6 +4,7 @@ import { Box, Button, Chip, Link, Rating, Stack, Typography } from '@mui/materia
 import {
   api, CANDIDATE_RESPONSE_LABEL, formatWhen, INTERVIEW_STATUS_COLOR, INTERVIEW_STATUS_LABEL, RECOMMENDATION_LABEL, type Interview,
 } from '../api'
+import { t } from '../i18n'
 import FeedbackDialog from './FeedbackDialog'
 import InterviewDialog from './InterviewDialog'
 
@@ -17,12 +18,12 @@ export default function InterviewItem({ interview: i, onChanged, onError }: Prop
 
   function mailNotice(action: string, emailed: boolean, mailError: string | null): Notice {
     return emailed
-      ? { severity: 'success', text: `Interview ${action}; email sent.` }
-      : { severity: 'warning', text: `Interview ${action}, but the email failed: ${mailError}` }
+      ? { severity: 'success', text: t('Interview {action}; email sent.', { action: t(action) }) }
+      : { severity: 'warning', text: t('Interview {action}, but the email failed: {error}', { action: t(action), error: mailError ?? '' }) }
   }
 
   async function cancel() {
-    if (!window.confirm(`Cancel the interview on ${formatWhen(i.start)}? Both attendees get a cancellation email.`)) return
+    if (!window.confirm(t('Cancel the interview on {when}? Both attendees get a cancellation email.', { when: formatWhen(i.start) }))) return
     try {
       const result = await api.cancelInterview(i.id)
       onChanged(mailNotice('cancelled', result.emailed, result.mail_error))
@@ -38,7 +39,7 @@ export default function InterviewItem({ interview: i, onChanged, onError }: Prop
           sx={{ textDecoration: i.status === 'cancelled' ? 'line-through' : undefined }}>
           {formatWhen(i.start)}
         </Typography>
-        <Chip size="small" label={INTERVIEW_STATUS_LABEL[i.status]} color={INTERVIEW_STATUS_COLOR[i.status]} />
+        <Chip size="small" label={t(INTERVIEW_STATUS_LABEL[i.status])} color={INTERVIEW_STATUS_COLOR[i.status]} />
       </Stack>
       <Typography variant="caption" color="text.secondary" component="div">
         {i.interviewer_name || i.interviewer_email}{i.location && i.location !== i.meet_url && ` · ${i.location}`}
@@ -46,7 +47,7 @@ export default function InterviewItem({ interview: i, onChanged, onError }: Prop
       {(i.meet_url || (i.status === 'scheduled' && i.candidate_response !== 'none')) && (
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           {i.status === 'scheduled' && i.candidate_response !== 'none' && (
-            <Chip size="small" variant="outlined" label={CANDIDATE_RESPONSE_LABEL[i.candidate_response]}
+            <Chip size="small" variant="outlined" label={t(CANDIDATE_RESPONSE_LABEL[i.candidate_response])}
               color={i.candidate_response === 'accepted' ? 'success' : 'error'} />
           )}
           {i.meet_url && <Link variant="caption" href={i.meet_url} target="_blank" rel="noreferrer">Google Meet</Link>}
@@ -55,7 +56,7 @@ export default function InterviewItem({ interview: i, onChanged, onError }: Prop
       {(i.score || i.recommendation) && (
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           {i.score && <Rating size="small" value={i.score} readOnly />}
-          {i.recommendation && <Typography variant="caption">{RECOMMENDATION_LABEL[i.recommendation]}</Typography>}
+          {i.recommendation && <Typography variant="caption">{t(RECOMMENDATION_LABEL[i.recommendation])}</Typography>}
         </Stack>
       )}
       {i.feedback && <Typography variant="caption" component="div" sx={{ whiteSpace: 'pre-line' }}>{i.feedback}</Typography>}
@@ -63,12 +64,12 @@ export default function InterviewItem({ interview: i, onChanged, onError }: Prop
       <Stack direction="row" spacing={1}>
         {i.status === 'scheduled' && (
           <>
-            <Button size="small" onClick={() => setDialog('reschedule')}>Reschedule</Button>
-            <Button size="small" color="error" onClick={cancel}>Cancel</Button>
+            <Button size="small" onClick={() => setDialog('reschedule')}>{t('Reschedule')}</Button>
+            <Button size="small" color="error" onClick={cancel}>{t('Cancel')}</Button>
           </>
         )}
         {started && i.status !== 'cancelled' && (
-          <Button size="small" onClick={() => setDialog('feedback')}>Feedback</Button>
+          <Button size="small" onClick={() => setDialog('feedback')}>{t('Feedback')}</Button>
         )}
       </Stack>
 

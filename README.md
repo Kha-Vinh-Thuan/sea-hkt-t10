@@ -53,6 +53,9 @@ Layer rules and "where to change what": [backend/README.md](backend/README.md).
 
 ## Run
 
+Before deploying to a real domain, go through the deploy checklist in [docs/PLAN.md](docs/PLAN.md) (section 4b):
+Google redirect URI, `FRONTEND_URL`, `SECRET_KEY`, SMTP, CORS.
+
 ```bash
 docker compose up -d                       # Postgres + Mailpit
 

@@ -126,6 +126,11 @@ def test_schedule_interview_uses_job_duration_emails_ics_and_moves_stage(recruit
     assert detail["stage"] == "interview"
     assert detail["activity"][-1]["message"] == "Invitation emailed"
     assert [i["applicant_name"] for i in recruiter.get("/api/interviews").json()] == ["An"]
+    # Board dot: a booked interview counts, a cancelled one does not.
+    card = lambda: next(a for a in recruiter.get("/api/applicants", params={"job_id": 1}).json() if a["id"] == applicant_id)
+    assert card()["interview_count"] == 1
+    assert recruiter.post(f"/api/interviews/{interview['id']}/cancel").status_code == 200
+    assert card()["interview_count"] == 0
 
 
 def test_interview_rejects_past_time_and_interviewer_double_booking(recruiter, sent):

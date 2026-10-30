@@ -8,6 +8,7 @@ import {
 } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { api, STAGE_LABEL, type PoolMember, type TalentPool } from '../api'
+import { t } from '../i18n'
 
 export default function TalentPoolsPage({ onError }: { onError: (e: Error) => void }) {
   const [pools, setPools] = useState<TalentPool[]>([])
@@ -34,7 +35,7 @@ export default function TalentPoolsPage({ onError }: { onError: (e: Error) => vo
   }
 
   async function remove(pool: TalentPool) {
-    if (!window.confirm(`Delete the pool "${pool.name}"? Its applicants are kept.`)) return
+    if (!window.confirm(t('Delete the pool "{name}"? Its applicants are kept.', { name: pool.name }))) return
     try {
       await api.deleteTalentPool(pool.id)
       if (poolId === pool.id) setPoolId(undefined)
@@ -59,26 +60,26 @@ export default function TalentPoolsPage({ onError }: { onError: (e: Error) => vo
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'flex-start' }}>
         <Card variant="outlined" sx={{ width: { xs: '100%', md: 320 }, flexShrink: 0 }}>
           <CardContent>
-            <Typography variant="subtitle1" fontWeight={700}>Talent pools</Typography>
+            <Typography variant="subtitle1" fontWeight={700}>{t('Talent pools')}</Typography>
             <List dense>
               {pools.map((p) => (
                 <ListItemButton key={p.id} selected={p.id === poolId} onClick={() => setPoolId(p.id)}>
                   <ListItemText primary={p.name} secondary={p.description || undefined} />
                   <Chip size="small" label={p.member_count} sx={{ mr: 1 }} />
-                  <IconButton size="small" aria-label={`Delete ${p.name}`}
+                  <IconButton size="small" aria-label={t('Delete {name}', { name: p.name })}
                     onClick={(e) => { e.stopPropagation(); remove(p) }}>
                     <DeleteOutlineIcon fontSize="small" />
                   </IconButton>
                 </ListItemButton>
               ))}
-              {!pools.length && <ListItemText sx={{ px: 2 }} secondary="No pools yet." />}
+              {!pools.length && <ListItemText sx={{ px: 2 }} secondary={t('No pools yet.')} />}
             </List>
             <Stack spacing={1}>
-              <TextField size="small" label="New pool name" value={draft.name}
+              <TextField size="small" label={t('New pool name')} value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-              <TextField size="small" label="Description" value={draft.description}
+              <TextField size="small" label={t('Description')} value={draft.description}
                 onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
-              <Button variant="contained" disabled={!draft.name.trim()} onClick={create}>Create pool</Button>
+              <Button variant="contained" disabled={!draft.name.trim()} onClick={create}>{t('Create pool')}</Button>
             </Stack>
           </CardContent>
         </Card>
@@ -86,20 +87,20 @@ export default function TalentPoolsPage({ onError }: { onError: (e: Error) => vo
         <Card variant="outlined" sx={{ flex: 1, width: '100%' }}>
           <CardContent sx={{ overflowX: 'auto' }}>
             {!selected ? (
-              <Typography color="text.secondary">Select a pool to see its applicants.</Typography>
+              <Typography color="text.secondary">{t('Select a pool to see its applicants.')}</Typography>
             ) : (
               <>
                 <Typography variant="subtitle1" fontWeight={700} gutterBottom>{selected.name}</Typography>
                 {!members.length ? (
-                  <Typography color="text.secondary">No applicants yet. Add them from the applicant panel.</Typography>
+                  <Typography color="text.secondary">{t('No applicants yet. Add them from the applicant panel.')}</Typography>
                 ) : (
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell>Name</TableCell>
-                        <TableCell>Email</TableCell>
-                        <TableCell>Job</TableCell>
-                        <TableCell>Stage</TableCell>
+                        <TableCell>{t('Name')}</TableCell>
+                        <TableCell>{t('Email')}</TableCell>
+                        <TableCell>{t('Job')}</TableCell>
+                        <TableCell>{t('Stage')}</TableCell>
                         <TableCell />
                       </TableRow>
                     </TableHead>
@@ -109,9 +110,9 @@ export default function TalentPoolsPage({ onError }: { onError: (e: Error) => vo
                           <TableCell>{m.name}</TableCell>
                           <TableCell>{m.email}</TableCell>
                           <TableCell>{m.job_title}</TableCell>
-                          <TableCell>{STAGE_LABEL[m.stage]}</TableCell>
+                          <TableCell>{t(STAGE_LABEL[m.stage])}</TableCell>
                           <TableCell align="right">
-                            <Button size="small" onClick={() => removeMember(m.id)}>Remove</Button>
+                            <Button size="small" onClick={() => removeMember(m.id)}>{t('Remove')}</Button>
                           </TableCell>
                         </TableRow>
                       ))}

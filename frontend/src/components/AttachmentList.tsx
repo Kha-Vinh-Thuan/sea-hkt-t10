@@ -2,7 +2,8 @@
 import { Box, Button, IconButton, Link, Stack, Typography } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
-import { api, type Attachment } from '../api'
+import { api, VISUALLY_HIDDEN, type Attachment } from '../api'
+import { t } from '../i18n'
 
 type Props = { applicantId: number; items: Attachment[]; onChanged: () => void; onError: (message: string) => void }
 
@@ -15,17 +16,17 @@ export default function AttachmentList({ applicantId, items, onChanged, onError 
   return (
     <Box>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="subtitle2" fontWeight={700}>Attachments</Typography>
+        <Typography variant="subtitle2" fontWeight={700}>{t('Attachments')}</Typography>
         <Button size="small" component="label" startIcon={<UploadFileIcon />}>
-          Upload
-          <input hidden type="file" accept={ACCEPT} onChange={(e) => {
+          {t('Upload')}
+          <input type="file" style={VISUALLY_HIDDEN} accept={ACCEPT} onChange={(e) => {
             const file = e.target.files?.[0]
             e.target.value = '' // lets the same file be picked again after an error
             if (file) run(() => api.uploadAttachment(applicantId, file))
           }} />
         </Button>
       </Stack>
-      {items.length === 0 && <Typography variant="body2" color="text.secondary">PDF, DOCX, TXT, PNG or JPG, up to 5 MB.</Typography>}
+      {items.length === 0 && <Typography variant="body2" color="text.secondary">{t('PDF, DOCX, TXT, PNG or JPG, up to 5 MB.')}</Typography>}
       {items.map((a) => (
         <Stack key={a.id} direction="row" sx={{ alignItems: 'center' }}>
           <Link component="button" variant="body2" sx={{ flex: 1, textAlign: 'left' }}
@@ -33,8 +34,8 @@ export default function AttachmentList({ applicantId, items, onChanged, onError 
             {a.filename}
           </Link>
           <Typography variant="caption" color="text.secondary" sx={{ mx: 1 }}>{Math.ceil(a.size / 1024)} KB</Typography>
-          <IconButton size="small" aria-label={`Delete ${a.filename}`}
-            onClick={() => { if (confirm(`Delete ${a.filename}?`)) run(() => api.deleteAttachment(applicantId, a.id)) }}>
+          <IconButton size="small" aria-label={t('Delete {name}', { name: a.filename })}
+            onClick={() => { if (confirm(t('Delete {name}?', { name: a.filename }))) run(() => api.deleteAttachment(applicantId, a.id)) }}>
             <DeleteOutlineIcon fontSize="small" />
           </IconButton>
         </Stack>

@@ -8,24 +8,24 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import PlaceOutlinedIcon from '@mui/icons-material/PlaceOutlined'
 import { api, EMPLOYMENT_LABEL, type PublicJob } from '../api'
 import ApplyForm from '../components/ApplyForm'
+import LangSwitch from '../components/LangSwitch'
+import { locale, t } from '../i18n'
 
-const vnd = (n: number) => n.toLocaleString('vi-VN')
+const vnd = (n: number) => n.toLocaleString(locale())
 
 function salaryLabel({ salary_min: min, salary_max: max }: PublicJob) {
   if (min !== null && max !== null) return min === max ? `${vnd(min)} VND` : `${vnd(min)} – ${vnd(max)} VND`
-  if (min !== null) return `From ${vnd(min)} VND`
-  if (max !== null) return `Up to ${vnd(max)} VND`
+  if (min !== null) return t('From {amount} VND', { amount: vnd(min) })
+  if (max !== null) return t('Up to {amount} VND', { amount: vnd(max) })
   return ''
 }
 
 function JobMeta({ job }: { job: PublicJob }) {
   return (
     <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
-      {job.department && <Chip size="small" label={job.department} />}
       {job.location && <Chip size="small" variant="outlined" icon={<PlaceOutlinedIcon />} label={job.location} />}
-      <Chip size="small" variant="outlined" label={EMPLOYMENT_LABEL[job.employment_type]} />
-      {job.is_remote && <Chip size="small" color="primary" variant="outlined" label="Remote" />}
-      {job.tags.map((tag) => <Chip key={tag} size="small" color="secondary" variant="outlined" label={tag} />)}
+      <Chip size="small" variant="outlined" label={t(EMPLOYMENT_LABEL[job.employment_type])} />
+      {job.is_remote && <Chip size="small" color="primary" variant="outlined" label={t('Remote')} />}
     </Stack>
   )
 }
@@ -39,12 +39,11 @@ function Linkified({ text }: { text: string }) {
 }
 
 // Every filter value maps to a predicate; '' means "any".
-type Filters = { department: string; location: string; employment_type: string; remote: string }
-const NO_FILTERS: Filters = { department: '', location: '', employment_type: '', remote: '' }
+type Filters = { location: string; employment_type: string; remote: string }
+const NO_FILTERS: Filters = { location: '', employment_type: '', remote: '' }
 
 function matches(job: PublicJob, f: Filters) {
-  return (!f.department || job.department === f.department)
-    && (!f.location || job.location === f.location)
+  return (!f.location || job.location === f.location)
     && (!f.employment_type || job.employment_type === f.employment_type)
     && (!f.remote || String(job.is_remote) === f.remote)
 }
@@ -55,8 +54,8 @@ function FilterSelect({ label, value, options, onChange }: {
   return (
     <TextField select size="small" label={label} value={value} onChange={(e) => onChange(e.target.value)}
       sx={{ minWidth: 170 }}>
-      <MenuItem value="">Any</MenuItem>
-      {options.map(([v, text]) => <MenuItem key={v} value={v}>{text}</MenuItem>)}
+      <MenuItem value="">{t('Any')}</MenuItem>
+      {options.map(([v, text]) => <MenuItem key={v} value={v}>{t(text)}</MenuItem>)}
     </TextField>
   )
 }
@@ -70,24 +69,23 @@ function JobList() {
 
   if (error) return <Alert severity="error">{error}</Alert>
   if (!jobs) return <CircularProgress />
-  if (!jobs.length) return <Typography color="text.secondary">No open positions right now.</Typography>
+  if (!jobs.length) return <Typography color="text.secondary">{t('No open positions right now.')}</Typography>
 
-  const distinct = (key: 'department' | 'location') =>
+  const distinct = (key: 'location') =>
     [...new Set(jobs.map((j) => j[key]).filter(Boolean))].sort().map((v): [string, string] => [v, v])
   const set = (key: keyof Filters) => (value: string) => setFilters({ ...filters, [key]: value })
   const shown = jobs.filter((job) => matches(job, filters))
   return (
     <Stack spacing={2}>
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
-        <FilterSelect label="Department" value={filters.department} options={distinct('department')} onChange={set('department')} />
-        <FilterSelect label="Location" value={filters.location} options={distinct('location')} onChange={set('location')} />
-        <FilterSelect label="Employment type" value={filters.employment_type}
+        <FilterSelect label={t('Location')} value={filters.location} options={distinct('location')} onChange={set('location')} />
+        <FilterSelect label={t('Employment type')} value={filters.employment_type}
           options={Object.entries(EMPLOYMENT_LABEL)} onChange={set('employment_type')} />
-        <FilterSelect label="Remote" value={filters.remote} options={[['true', 'Remote'], ['false', 'On-site']]}
+        <FilterSelect label={t('Remote')} value={filters.remote} options={[['true', 'Remote'], ['false', 'On-site']]}
           onChange={set('remote')} />
-        {shown.length < jobs.length && <Button onClick={() => setFilters(NO_FILTERS)}>Clear filters</Button>}
+        {shown.length < jobs.length && <Button onClick={() => setFilters(NO_FILTERS)}>{t('Clear filters')}</Button>}
       </Stack>
-      {!shown.length && <Typography color="text.secondary">No jobs match these filters.</Typography>}
+      {!shown.length && <Typography color="text.secondary">{t('No jobs match these filters.')}</Typography>}
       {shown.map((job) => (
         <Card key={job.id} variant="outlined">
           <CardActionArea href={`/careers/${job.id}${window.location.search}`}>
@@ -117,24 +115,24 @@ function JobDetail({ jobId }: { jobId: number }) {
         <Typography variant="h4" fontWeight={800} gutterBottom>{job.title}</Typography>
         <JobMeta job={job} />
         <Stack spacing={0.5} sx={{ mt: 2 }}>
-          {salaryLabel(job) && <Typography><b>Salary:</b> {salaryLabel(job)} / month</Typography>}
-          {job.expected_degree && <Typography><b>Degree:</b> {job.expected_degree}</Typography>}
+          {salaryLabel(job) && <Typography><b>{t('Salary:')}</b> {t('{salary} / month', { salary: salaryLabel(job) })}</Typography>}
+          {job.expected_degree && <Typography><b>{t('Degree:')}</b> {job.expected_degree}</Typography>}
           {job.closes_on && (
-            <Typography><b>Apply by:</b> {new Date(`${job.closes_on}T00:00`).toLocaleDateString()}</Typography>
+            <Typography><b>{t('Apply by:')}</b> {new Date(`${job.closes_on}T00:00`).toLocaleDateString(locale())}</Typography>
           )}
         </Stack>
-        <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>About the role</Typography>
+        <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>{t('About the role')}</Typography>
         <Typography sx={{ whiteSpace: 'pre-line' }}><Linkified text={job.description} /></Typography>
         {job.requirements && (
           <>
-            <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Requirements</Typography>
+            <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>{t('Requirements')}</Typography>
             <Typography sx={{ whiteSpace: 'pre-line' }}><Linkified text={job.requirements} /></Typography>
           </>
         )}
       </Box>
       <Card variant="outlined" sx={{ position: { md: 'sticky' }, top: 24 }}>
         <CardContent>
-          <Typography variant="h6" fontWeight={700} gutterBottom>Apply for this job</Typography>
+          <Typography variant="h6" fontWeight={700} gutterBottom>{t('Apply for this job')}</Typography>
           <ApplyForm jobId={job.id} />
         </CardContent>
       </Card>
@@ -147,13 +145,16 @@ export default function CareersPage({ jobId }: { jobId?: number }) {
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', py: { xs: 5, md: 7 } }}>
         <Container maxWidth="lg">
-          <Typography variant="h3" fontWeight={800}>Join our team</Typography>
-          <Typography sx={{ mt: 1, opacity: 0.85 }}>Find a role where you can do your best work.</Typography>
+          <Stack direction="row" sx={{ alignItems: 'flex-start' }}>
+            <Typography variant="h3" fontWeight={800} sx={{ flex: 1 }}>{t('Join our team')}</Typography>
+            <LangSwitch color="inherit" />
+          </Stack>
+          <Typography sx={{ mt: 1, opacity: 0.85 }}>{t('Find a role where you can do your best work.')}</Typography>
         </Container>
       </Box>
       <Container maxWidth="lg" sx={{ py: 4 }}>
         {jobId !== undefined && (
-          <Button component={Link} href="/careers" startIcon={<ArrowBackIcon />} sx={{ mb: 3 }}>All jobs</Button>
+          <Button component={Link} href="/careers" startIcon={<ArrowBackIcon />} sx={{ mb: 3 }}>{t('All jobs')}</Button>
         )}
         {jobId === undefined ? <JobList /> : <JobDetail jobId={jobId} />}
       </Container>

@@ -229,8 +229,28 @@ Users page, interviewer view.
 
 - Token is stored in `localStorage`. Move to an httpOnly cookie before going public.
 - Login rate limit is per process memory (resets on restart). No rate limit on apply.
-- Upload folder is local disk (`backend/uploads/`, gitignored). Use object storage if deployed.
+- CV / attachment files are stored in the database (`stored_file`, 5 MB max each). Move to object storage if files grow.
 - Times are stored in UTC; display uses the browser's timezone, emails use `TIMEZONE` from `.env`.
+
+## 4b. Deploy checklist (do not skip)
+
+Local dev (each teammate runs the backend on their own machine against the shared Supabase DB) works with the
+`localhost` values. Before putting the app on a real domain, e.g. `https://hr.example.com`:
+
+| What | Where | Change |
+|---|---|---|
+| Google redirect URI | Google Cloud → Google Auth Platform → Clients → `hr-backend` → Authorized redirect URIs | **Add** `https://hr.example.com/api/google/callback` (keep the localhost one for dev; one client holds both) |
+| `GOOGLE_REDIRECT_URI` | server env | `https://hr.example.com/api/google/callback` (must match the URI above character for character) |
+| `FRONTEND_URL` | server env | `https://hr.example.com`: used in candidate emails (booking link, Accept / Decline). Left on localhost, candidates get links that do not open |
+| Authorized domains | Google Cloud → Branding | add `example.com` if Google asks |
+| Google app mode | Google Cloud → Audience | Testing = only listed test users, consent expires after 7 days. Publish (Google review) before real interviewers outside the list use it |
+| HTTPS | hosting | required for every non-localhost redirect URI |
+| Same Google client everywhere | every `.env` | all machines / servers sharing one DB must use the same `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`, refresh tokens only work with the client that issued them |
+| `SECRET_KEY` | server env | long random value, never the dev one; signs login tokens and the Google OAuth state |
+| SMTP | server env | real SMTP (Gmail app password or a mail service) instead of Mailpit; `MAIL_FROM`, `COMPANY_NAME` set |
+| CORS / API URL | backend `main.py` CORS list, frontend build | allow the real frontend origin; serve `/api` on the same domain or point the frontend at it |
+| Login token storage | frontend | move from `localStorage` to an httpOnly cookie (section 4) |
+| Google refresh tokens | `google_credential` table | stored in plain text: encrypt before a shared or public deployment |
 
 ## 5. Assumptions to confirm
 

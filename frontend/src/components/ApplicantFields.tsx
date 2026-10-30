@@ -1,8 +1,10 @@
 // Recruiter-editable fields of one applicant (stars, tags, notes, next step + who, owner, source, LinkedIn, degree,
 // dates, salaries) + Save.
 import { useEffect, useState } from 'react'
-import { Autocomplete, Button, Chip, MenuItem, Rating, Stack, TextField, Typography } from '@mui/material'
+import { Autocomplete, Button, Chip, Collapse, MenuItem, Rating, Stack, TextField, Typography } from '@mui/material'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { api, SOURCE_LABEL, type ApplicantDetail, type ApplicantUpdate, type Source, type UserBrief } from '../api'
+import { t } from '../i18n'
 
 type Props = { applicant: ApplicantDetail; onSaved: () => void; onError: (message: string) => void }
 
@@ -19,10 +21,11 @@ const toUserId = (value: string) => (value === '' ? null : Number(value))
 // Empty number inputs mean "not set" (null), not 0.
 const toNumber = (value: string) => (value === '' ? null : Number(value))
 
-// The drawer remounts this with key={applicant.id}, so the form resets when another applicant is opened.
+// The applicant page remounts this with key={applicant.id}, so the form resets when another applicant is opened.
 export default function ApplicantFields({ applicant, onSaved, onError }: Props) {
   const [form, setForm] = useState<ApplicantUpdate>(() => toForm(applicant))
   const [busy, setBusy] = useState(false)
+  const [more, setMore] = useState(false) // rarely edited fields stay folded
   const set = (patch: Partial<ApplicantUpdate>) => setForm((f) => ({ ...f, ...patch }))
   const [users, setUsers] = useState<UserBrief[]>([])
 
@@ -30,9 +33,9 @@ export default function ApplicantFields({ applicant, onSaved, onError }: Props) 
 
   // Active users only; a since-deactivated owner stays listed so the select still shows who it was.
   const userSelect = (label: string, value: number | null, onChange: (id: number | null) => void) => (
-    <TextField select label={label} fullWidth value={value ?? ''} onChange={(e) => onChange(toUserId(e.target.value))}>
-      <MenuItem value="">Nobody</MenuItem>
-      {value !== null && !users.some((u) => u.id === value) && <MenuItem value={value}>Inactive user #{value}</MenuItem>}
+    <TextField select size="small" label={label} fullWidth value={value ?? ''} onChange={(e) => onChange(toUserId(e.target.value))}>
+      <MenuItem value="">{t('Nobody')}</MenuItem>
+      {value !== null && !users.some((u) => u.id === value) && <MenuItem value={value}>{t('Inactive user #{id}', { id: value })}</MenuItem>}
       {users.map((u) => <MenuItem key={u.id} value={u.id}>{u.name || u.email}</MenuItem>)}
     </TextField>
   )
@@ -49,57 +52,63 @@ export default function ApplicantFields({ applicant, onSaved, onError }: Props) 
     }
   }
 
+  // Day-to-day fields first (stars, tags, notes, next step); source / LinkedIn / degree / dates / salaries fold away.
+  const small = { size: 'small', fullWidth: true } as const
+  const date = { inputLabel: { shrink: true } }
   return (
-    <Stack spacing={2}>
+    <Stack spacing={1.5}>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-        <Typography variant="body2" color="text.secondary">Priority</Typography>
+        <Typography variant="body2" color="text.secondary">{t('Priority')}</Typography>
         <Rating max={3} value={form.priority} onChange={(_e, v) => set({ priority: v ?? 0 })} />
       </Stack>
       <Autocomplete
-        multiple freeSolo options={[]} value={form.tags}
+        multiple freeSolo options={[]} value={form.tags} size="small"
         onChange={(_e, tags) => set({ tags: tags as string[] })}
         renderValue={(tags, getItemProps) =>
           tags.map((tag, index) => <Chip size="small" label={tag} {...getItemProps({ index })} key={tag} />)}
-        renderInput={(params) => <TextField {...params} label="Tags" placeholder="Type and press Enter" />}
+        renderInput={(params) => <TextField {...params} label={t('Tags')} placeholder={t('Type and press Enter')} />}
       />
-      <TextField label="Recruiter notes" multiline minRows={3} value={form.notes}
+      <TextField {...small} label={t('Recruiter notes')} multiline minRows={2} value={form.notes}
         onChange={(e) => set({ notes: e.target.value })} />
       <Stack direction="row" spacing={1}>
-        <TextField label="Next step" fullWidth value={form.next_action} placeholder="e.g. Call about salary"
+        <TextField {...small} label={t('Next step')} value={form.next_action} placeholder={t('e.g. Call about salary')}
           onChange={(e) => set({ next_action: e.target.value })} />
-        <TextField label="Due" type="date" value={form.next_action_due ?? ''} sx={{ minWidth: 160 }}
-          slotProps={{ inputLabel: { shrink: true } }}
-          onChange={(e) => set({ next_action_due: e.target.value || null })} />
+        <TextField size="small" label={t('Due')} type="date" value={form.next_action_due ?? ''} sx={{ minWidth: 150 }}
+          slotProps={date} onChange={(e) => set({ next_action_due: e.target.value || null })} />
       </Stack>
-      <Stack direction="row" spacing={1}>
-        {userSelect('Next step by', form.next_action_user_id, (id) => set({ next_action_user_id: id }))}
-        {userSelect('Recruiter (owner)', form.user_id, (id) => set({ user_id: id }))}
-      </Stack>
-      <Stack direction="row" spacing={1}>
-        <TextField select label="Source" fullWidth value={form.source}
-          onChange={(e) => set({ source: e.target.value as Source })}>
-          {Object.entries(SOURCE_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
-        </TextField>
-        <TextField label="Source detail" fullWidth value={form.source_detail} placeholder="e.g. referrer name"
-          onChange={(e) => set({ source_detail: e.target.value })} />
-      </Stack>
-      <TextField label="LinkedIn" type="url" value={form.linkedin} placeholder="https://"
-        onChange={(e) => set({ linkedin: e.target.value })} />
-      <Stack direction="row" spacing={1}>
-        <TextField label="Degree" fullWidth value={form.degree} onChange={(e) => set({ degree: e.target.value })} />
-        <TextField label="Available from" type="date" fullWidth value={form.available_from ?? ''}
-          slotProps={{ inputLabel: { shrink: true } }}
-          onChange={(e) => set({ available_from: e.target.value || null })} />
-      </Stack>
-      <Stack direction="row" spacing={1}>
-        <TextField label="Expected salary" type="number" fullWidth value={form.salary_expected ?? ''}
-          slotProps={{ htmlInput: { min: 0 } }} onChange={(e) => set({ salary_expected: toNumber(e.target.value) })} />
-        <TextField label="Proposed salary" type="number" fullWidth value={form.salary_proposed ?? ''}
-          slotProps={{ htmlInput: { min: 0 } }} onChange={(e) => set({ salary_proposed: toNumber(e.target.value) })} />
-      </Stack>
-      <Button variant="outlined" onClick={save} disabled={busy} sx={{ alignSelf: 'flex-start' }}>
-        {busy ? 'Saving…' : 'Save'}
+      {userSelect(t('Next step by'), form.next_action_user_id, (id) => set({ next_action_user_id: id }))}
+
+      <Button size="small" onClick={() => setMore(!more)} aria-expanded={more} sx={{ alignSelf: 'flex-start' }}
+        endIcon={<ExpandMoreIcon sx={{ transform: more ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />}>
+        {more ? t('Fewer details') : t('More details')}
       </Button>
+      <Collapse in={more} unmountOnExit>
+        <Stack spacing={1.5}>
+          {userSelect(t('Recruiter (owner)'), form.user_id, (id) => set({ user_id: id }))}
+          <Stack direction="row" spacing={1}>
+            <TextField {...small} select label={t('Source')} value={form.source}
+              onChange={(e) => set({ source: e.target.value as Source })}>
+              {Object.entries(SOURCE_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{t(label)}</MenuItem>)}
+            </TextField>
+            <TextField {...small} label={t('Source detail')} value={form.source_detail} placeholder={t('e.g. referrer name')}
+              onChange={(e) => set({ source_detail: e.target.value })} />
+          </Stack>
+          <TextField {...small} label="LinkedIn" type="url" value={form.linkedin} placeholder="https://"
+            onChange={(e) => set({ linkedin: e.target.value })} />
+          <Stack direction="row" spacing={1}>
+            <TextField {...small} label={t('Degree')} value={form.degree} onChange={(e) => set({ degree: e.target.value })} />
+            <TextField {...small} label={t('Available from')} type="date" value={form.available_from ?? ''}
+              slotProps={date} onChange={(e) => set({ available_from: e.target.value || null })} />
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <TextField {...small} label={t('Expected salary')} type="number" value={form.salary_expected ?? ''}
+              slotProps={{ htmlInput: { min: 0 } }} onChange={(e) => set({ salary_expected: toNumber(e.target.value) })} />
+            <TextField {...small} label={t('Proposed salary')} type="number" value={form.salary_proposed ?? ''}
+              slotProps={{ htmlInput: { min: 0 } }} onChange={(e) => set({ salary_proposed: toNumber(e.target.value) })} />
+          </Stack>
+        </Stack>
+      </Collapse>
+      <Button variant="contained" onClick={save} loading={busy} sx={{ alignSelf: 'flex-end' }}>{t('Save')}</Button>
     </Stack>
   )
 }

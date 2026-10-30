@@ -5,6 +5,7 @@ import {
   Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField,
 } from '@mui/material'
 import { api, type MailTemplate, type Stage } from '../api'
+import { t } from '../i18n'
 
 type Props = {
   applicantId: number
@@ -34,7 +35,7 @@ export default function ComposeEmailDialog({ applicantId, stage, onClose, onSent
 
   useEffect(() => {
     api.mailTemplates().then((list) => {
-      const forStage = stage && list.find((t) => t.stage === stage)
+      const forStage = stage && list.find((tpl) => tpl.stage === stage)
       if (stage && !forStage) return onClose() // nothing to offer for this stage
       setTemplates(list)
       if (forStage) pick(forStage.id)
@@ -57,20 +58,20 @@ export default function ComposeEmailDialog({ applicantId, stage, onClose, onSent
 
   return (
     <Dialog open={templates !== null} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Send email</DialogTitle>
+      <DialogTitle>{t('Send email')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
-          <TextField select label="Template" value={templateId} onChange={(e) => pick(Number(e.target.value))}>
-            {(templates ?? []).map((t) => <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
+          <TextField select label={t('Template')} value={templateId} onChange={(e) => pick(Number(e.target.value))}>
+            {(templates ?? []).map((tpl) => <MenuItem key={tpl.id} value={tpl.id}>{tpl.name}</MenuItem>)}
           </TextField>
-          <TextField label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} required />
-          <TextField label="Body" value={body} onChange={(e) => setBody(e.target.value)} multiline minRows={8} required />
+          <TextField label={t('Subject')} value={subject} onChange={(e) => setSubject(e.target.value)} required />
+          <TextField label={t('Body')} value={body} onChange={(e) => setBody(e.target.value)} multiline minRows={8} required />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={send} disabled={busy || !subject.trim() || !body.trim()}>Send</Button>
+        <Button onClick={onClose}>{t('Cancel')}</Button>
+        <Button variant="contained" onClick={send} loading={busy} disabled={!subject.trim() || !body.trim()}>{t('Send')}</Button>
       </DialogActions>
     </Dialog>
   )

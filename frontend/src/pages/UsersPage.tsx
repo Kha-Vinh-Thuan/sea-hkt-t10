@@ -7,6 +7,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import { api, ROLE_LABEL, type User } from '../api'
 import UserDialog from '../components/UserDialog'
+import { t } from '../i18n'
 
 type Props = { currentUserId: number; onError: (e: Error) => void }
 
@@ -23,8 +24,8 @@ export default function UsersPage({ currentUserId, onError }: Props) {
   return (
     <Stack spacing={2}>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h6" fontWeight={700}>Users</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialog('new')}>New user</Button>
+        <Typography variant="h6" fontWeight={700}>{t('Users')}</Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialog('new')}>{t('New user')}</Button>
       </Stack>
       {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
       {!users ? <CircularProgress /> : (
@@ -33,23 +34,23 @@ export default function UsersPage({ currentUserId, onError }: Props) {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Status</TableCell>
+                  <TableCell>{t('Name')}</TableCell>
+                  <TableCell>{t('Email')}</TableCell>
+                  <TableCell>{t('Role')}</TableCell>
+                  <TableCell>{t('Status')}</TableCell>
                   <TableCell />
                 </TableRow>
               </TableHead>
               <TableBody>
                 {users.map((u) => (
                   <TableRow key={u.id}>
-                    <TableCell>{u.name || '—'}{u.id === currentUserId && ' (you)'}</TableCell>
+                    <TableCell>{u.name || '—'}{u.id === currentUserId && ` (${t('you')})`}</TableCell>
                     <TableCell>{u.email}</TableCell>
-                    <TableCell>{ROLE_LABEL[u.role]}</TableCell>
+                    <TableCell>{t(ROLE_LABEL[u.role])}</TableCell>
                     <TableCell>
-                      <Chip size="small" label={u.is_active ? 'Active' : 'Inactive'} color={u.is_active ? 'success' : 'default'} />
+                      <Chip size="small" label={u.is_active ? t('Active') : t('Inactive')} color={u.is_active ? 'success' : 'default'} />
                     </TableCell>
-                    <TableCell align="right"><Button size="small" onClick={() => setDialog(u)}>Edit</Button></TableCell>
+                    <TableCell align="right"><Button size="small" onClick={() => setDialog(u)}>{t('Edit')}</Button></TableCell>
                   </TableRow>
                 ))}
               </TableBody>

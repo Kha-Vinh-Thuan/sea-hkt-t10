@@ -3,6 +3,8 @@ import { useState, type FormEvent } from 'react'
 import { Alert, Box, Button, Card, CardContent, Stack, TextField, Typography } from '@mui/material'
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline'
 import { api, session, type UserBrief } from '../api'
+import LangSwitch from '../components/LangSwitch'
+import { t } from '../i18n'
 
 export default function LoginPage({ onLoggedIn }: { onLoggedIn: (user: UserBrief) => void }) {
   const [error, setError] = useState('')
@@ -31,12 +33,13 @@ export default function LoginPage({ onLoggedIn }: { onLoggedIn: (user: UserBrief
           <Stack component="form" spacing={2.5} onSubmit={submit}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <WorkOutlineIcon color="primary" />
-              <Typography variant="h5" fontWeight={800}>Sign in</Typography>
+              <Typography variant="h5" fontWeight={800} sx={{ flex: 1 }}>{t('Sign in')}</Typography>
+              <LangSwitch />
             </Stack>
-            <TextField name="email" label="Email" type="email" required autoFocus autoComplete="username" />
-            <TextField name="password" label="Password" type="password" required autoComplete="current-password" />
+            <TextField name="email" label={t('Email')} type="email" required autoFocus autoComplete="username" />
+            <TextField name="password" label={t('Password')} type="password" required autoComplete="current-password" />
             {error && <Alert severity="error">{error}</Alert>}
-            <Button type="submit" variant="contained" size="large" disabled={busy}>Sign in</Button>
+            <Button type="submit" variant="contained" size="large" loading={busy}>{t('Sign in')}</Button>
           </Stack>
         </CardContent>
       </Card>

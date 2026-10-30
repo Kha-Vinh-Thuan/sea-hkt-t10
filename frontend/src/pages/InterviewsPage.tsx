@@ -6,6 +6,7 @@ import {
 } from '@mui/material'
 import { api, formatWhen, INTERVIEW_STATUS_COLOR, INTERVIEW_STATUS_LABEL, type UpcomingInterview } from '../api'
 import FeedbackDialog from '../components/FeedbackDialog'
+import { locale, t } from '../i18n'
 
 export default function InterviewsPage({ onError }: { onError: (e: Error) => void }) {
   const [rows, setRows] = useState<UpcomingInterview[] | null>(null)
@@ -19,7 +20,7 @@ export default function InterviewsPage({ onError }: { onError: (e: Error) => voi
 
   if (error) return <Alert severity="error">{error}</Alert>
   if (!rows) return <CircularProgress />
-  if (!rows.length) return <Typography color="text.secondary">No interviews.</Typography>
+  if (!rows.length) return <Typography color="text.secondary">{t('No interviews.')}</Typography>
 
   return (
     <Card variant="outlined">
@@ -27,12 +28,12 @@ export default function InterviewsPage({ onError }: { onError: (e: Error) => voi
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>When</TableCell>
-              <TableCell>Candidate</TableCell>
-              <TableCell>Job</TableCell>
-              <TableCell>Interviewer</TableCell>
-              <TableCell>Where</TableCell>
-              <TableCell>Status</TableCell>
+              <TableCell>{t('When')}</TableCell>
+              <TableCell>{t('Candidate')}</TableCell>
+              <TableCell>{t('Job')}</TableCell>
+              <TableCell>{t('Interviewer')}</TableCell>
+              <TableCell>{t('Where')}</TableCell>
+              <TableCell>{t('Status')}</TableCell>
               <TableCell />
             </TableRow>
           </TableHead>
@@ -43,7 +44,7 @@ export default function InterviewsPage({ onError }: { onError: (e: Error) => voi
                   <Stack>
                     <Typography variant="body2" fontWeight={600}>{formatWhen(i.start)}</Typography>
                     <Typography variant="caption" color="text.secondary">
-                      until {new Date(i.end).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                      {t('until {time}', { time: new Date(i.end).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }) })}
                     </Typography>
                   </Stack>
                 </TableCell>
@@ -52,15 +53,15 @@ export default function InterviewsPage({ onError }: { onError: (e: Error) => voi
                 <TableCell>{i.interviewer_name || i.interviewer_email}</TableCell>
                 <TableCell>
                   {i.location.startsWith('http')
-                    ? <Link href={i.location} target="_blank" rel="noopener">Join</Link>
+                    ? <Link href={i.location} target="_blank" rel="noopener">{t('Join')}</Link>
                     : i.location || '—'}
                 </TableCell>
                 <TableCell>
-                  <Chip size="small" label={INTERVIEW_STATUS_LABEL[i.status]} color={INTERVIEW_STATUS_COLOR[i.status]} />
+                  <Chip size="small" label={t(INTERVIEW_STATUS_LABEL[i.status])} color={INTERVIEW_STATUS_COLOR[i.status]} />
                 </TableCell>
                 <TableCell>
                   {new Date(i.start).getTime() <= Date.now() && i.status !== 'cancelled' && (
-                    <Button size="small" onClick={() => setFeedbackFor(i)}>Feedback</Button>
+                    <Button size="small" onClick={() => setFeedbackFor(i)}>{t('Feedback')}</Button>
                   )}
                 </TableCell>
               </TableRow>

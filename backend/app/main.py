@@ -31,6 +31,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="HR System API", lifespan=lifespan)
+# DEPLOY: add the real frontend origin (docs/PLAN.md 4b).
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["*"], allow_headers=["*"])
 
 for router in (jobs.public_router, applicants.public_router, auth.router,

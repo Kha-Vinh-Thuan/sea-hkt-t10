@@ -19,6 +19,16 @@ def list_by_applicant(session: Session, applicant_id: int) -> list[Interview]:
     return list(session.exec(
         select(Interview).where(Interview.applicant_id == applicant_id).order_by(Interview.start)).all())
 
+def count_booked(session: Session, applicant_ids: list[int]) -> dict[int, int]:
+    """Scheduled or done interviews per applicant (cancelled / no-show do not count), for the board dot."""
+    if not applicant_ids:
+        return {}
+    rows = session.exec(select(Interview.applicant_id, func.count()).where(
+        Interview.applicant_id.in_(applicant_ids),
+        Interview.status.in_([InterviewStatus.scheduled, InterviewStatus.done]),
+    ).group_by(Interview.applicant_id)).all()
+    return dict(rows)
+
 def find_clash(session: Session, interviewer_email: str, start: datetime, end: datetime,
                exclude_id: int | None = None) -> Interview | None:
     """Any active interview of this interviewer overlapping [start, end), other than `exclude_id`."""

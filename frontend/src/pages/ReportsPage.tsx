@@ -6,6 +6,7 @@ import {
   TableRow, Typography,
 } from '@mui/material'
 import { api, SOURCE_LABEL, STAGE_LABEL, type JobReport } from '../api'
+import { t } from '../i18n'
 
 // One table: a row per job, a column per key of the chosen count map.
 function CountTable<K extends string>({ title, rows, labels, counts }: {
@@ -19,8 +20,8 @@ function CountTable<K extends string>({ title, rows, labels, counts }: {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>Job</TableCell>
-              {keys.map((k) => <TableCell key={k} align="right">{labels[k]}</TableCell>)}
+              <TableCell>{t('Job')}</TableCell>
+              {keys.map((k) => <TableCell key={k} align="right">{t(labels[k])}</TableCell>)}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -54,26 +55,26 @@ export default function ReportsPage({ onError }: { onError: (e: Error) => void }
 
   if (error) return <Alert severity="error">{error}</Alert>
   if (!rows) return <CircularProgress />
-  if (!rows.length) return <Typography color="text.secondary">No jobs yet.</Typography>
+  if (!rows.length) return <Typography color="text.secondary">{t('No jobs yet.')}</Typography>
 
   return (
     <Stack spacing={2}>
       <Card variant="outlined">
         <CardContent sx={{ overflowX: 'auto' }}>
-          <Typography variant="subtitle1" fontWeight={700} gutterBottom>Hiring progress</Typography>
+          <Typography variant="subtitle1" fontWeight={700} gutterBottom>{t('Hiring progress')}</Typography>
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Job</TableCell>
-                <TableCell align="right">Applicants</TableCell>
-                <TableCell sx={{ minWidth: 160 }}>Hired / openings</TableCell>
-                <TableCell align="right">Avg days to hire</TableCell>
+                <TableCell>{t('Job')}</TableCell>
+                <TableCell align="right">{t('Applicants')}</TableCell>
+                <TableCell sx={{ minWidth: 160 }}>{t('Hired / openings')}</TableCell>
+                <TableCell align="right">{t('Avg days to hire')}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.job_id}>
-                  <TableCell>{r.title}{!r.is_open && ' (closed)'}</TableCell>
+                  <TableCell>{r.title}{!r.is_open && ` (${t('closed')})`}</TableCell>
                   <TableCell align="right">{r.total}</TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -90,9 +91,9 @@ export default function ReportsPage({ onError }: { onError: (e: Error) => void }
           </Table>
         </CardContent>
       </Card>
-      <CountTable title="Applicants by stage" rows={rows} labels={STAGE_LABEL} counts={(r) => r.by_stage} />
-      <CountTable title="Applicants by source" rows={rows} labels={SOURCE_LABEL} counts={(r) => r.by_source} />
-      <CountTable title="Refused by reason" rows={rows} labels={reasonLabels} counts={(r) => r.refused_by_reason} />
+      <CountTable title={t('Applicants by stage')} rows={rows} labels={STAGE_LABEL} counts={(r) => r.by_stage} />
+      <CountTable title={t('Applicants by source')} rows={rows} labels={SOURCE_LABEL} counts={(r) => r.by_source} />
+      <CountTable title={t('Refused by reason')} rows={rows} labels={reasonLabels} counts={(r) => r.refused_by_reason} />
     </Stack>
   )
 }

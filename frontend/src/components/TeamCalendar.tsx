@@ -1,18 +1,18 @@
-// Week grid (Mon–Fri, working hours) with the busy blocks of several interviewers on top of each other, one colour
-// each, like Odoo's attendee calendar. Only busy times are shown, never what the meeting is. Clicking a free cell
-// picks that start time for the given interviewer (the first ticked one that is free there).
+// Week grid (Mon–Fri, working hours) with the busy blocks of several interviewers side by side, like Odoo's attendee
+// calendar. Busy is red so HR sees at a glance where not to book; the picked cell is green. Only busy times are
+// shown, never what the meeting is. Clicking a free cell picks that start for the first ticked interviewer free there.
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, Box, Checkbox, Chip, FormControlLabel, IconButton, Stack, Tooltip, Typography } from '@mui/material'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { api, type InterviewerBusy, type UserBrief } from '../api'
+import { locale, t } from '../i18n'
 
 // Same as the backend's ASSUMPTION working hours (interviews/availability.py); rows every 30 minutes.
 const DAY_START = 9
 const DAY_END = 17
 const STEP_MINUTES = 30
 const ROW_PX = 22
-const COLORS = ['#1976d2', '#ed6c02', '#2e7d32', '#9c27b0', '#d32f2f', '#0288d1']
 
 type Props = {
   interviewers: UserBrief[]
@@ -28,10 +28,21 @@ function mondayOf(date: Date) {
   return d
 }
 
+// Open on next week once this week's working hours are over (Friday evening, weekend): nothing left to pick.
+function firstWeek() {
+  const now = new Date()
+  const friday = mondayOf(now)
+  friday.setDate(friday.getDate() + 4)
+  friday.setHours(DAY_END - 1, 0, 0, 0)
+  const start = mondayOf(now)
+  if (now > friday) start.setDate(start.getDate() + 7)
+  return start
+}
+
 const overlaps = (aStart: number, aEnd: number, bStart: number, bEnd: number) => aStart < bEnd && aEnd > bStart
 
 export default function TeamCalendar({ interviewers, minutes, selected, onPick }: Props) {
-  const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()))
+  const [weekStart, setWeekStart] = useState(firstWeek)
   const [ticked, setTicked] = useState<number[]>(() => interviewers.map((u) => u.id))
   const [rows, setRows] = useState<InterviewerBusy[] | null>(null)
   const [error, setError] = useState('')
@@ -55,7 +66,6 @@ export default function TeamCalendar({ interviewers, minutes, selected, onPick }
     for (let m = DAY_START * 60; m < DAY_END * 60; m += STEP_MINUTES) out.push(m)
     return out
   }, [])
-  const colorOf = (userId: number) => COLORS[interviewers.findIndex((u) => u.id === userId) % COLORS.length]
   const parsed = useMemo(() => (rows ?? []).map((r) => ({
     ...r, blocks: r.busy.map((b) => ({ ...b, s: Date.parse(b.start), e: Date.parse(b.end) })),
   })), [rows])
@@ -87,24 +97,25 @@ export default function TeamCalendar({ interviewers, minutes, selected, onPick }
       <Stack direction="row" sx={{ flexWrap: 'wrap', columnGap: 1, alignItems: 'center' }}>
         {interviewers.map((u) => (
           <FormControlLabel key={u.id} label={<Typography variant="body2">{u.name || u.email}</Typography>}
-            control={<Checkbox size="small" checked={ticked.includes(u.id)} sx={{ color: colorOf(u.id), '&.Mui-checked': { color: colorOf(u.id) } }}
-              onChange={(e) => setTicked((t) => (e.target.checked ? [...t, u.id] : t.filter((id) => id !== u.id)))} />} />
+            control={<Checkbox size="small" checked={ticked.includes(u.id)}
+              onChange={(e) => setTicked((ids) => (e.target.checked ? [...ids, u.id] : ids.filter((id) => id !== u.id)))} />} />
         ))}
       </Stack>
       <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mb: 0.5 }}>
-        <IconButton size="small" aria-label="Previous week" onClick={() => shift(-1)}><ChevronLeftIcon /></IconButton>
+        <IconButton size="small" aria-label={t('Previous week')} onClick={() => shift(-1)}><ChevronLeftIcon /></IconButton>
         <Typography variant="body2" fontWeight={600}>
-          {days[0].toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} – {days[4].toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+          {days[0].toLocaleDateString(locale(), { day: 'numeric', month: 'short' })} – {days[4].toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}
         </Typography>
-        <IconButton size="small" aria-label="Next week" onClick={() => shift(1)}><ChevronRightIcon /></IconButton>
-        {parsed.filter((r) => !r.google_connected).map((r) => (
-          <Chip key={r.user_id} size="small" variant="outlined" label={`${r.name}: no Google Calendar`} />
-        ))}
+        <IconButton size="small" aria-label={t('Next week')} onClick={() => shift(1)}><ChevronRightIcon /></IconButton>
+        {parsed.some((r) => !r.google_connected) && (
+          <Chip size="small" variant="outlined"
+            label={t('No Google Calendar: {names}', { names: parsed.filter((r) => !r.google_connected).map((r) => r.name).join(', ') })} />
+        )}
       </Stack>
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
       {googleProblems.length > 0 && (
         <Alert severity="warning" sx={{ mb: 1 }}>
-          Google Calendar could not be read for {googleProblems.map((r) => r.name).join(', ')}; only interviews booked here are shown.
+          {t('Google Calendar could not be read for {names}; only interviews booked here are shown.', { names: googleProblems.map((r) => r.name).join(', ') })}
         </Alert>
       )}
 
@@ -113,7 +124,7 @@ export default function TeamCalendar({ interviewers, minutes, selected, onPick }
           <Box />
           {days.map((d) => (
             <Typography key={d.toISOString()} variant="caption" fontWeight={600} sx={{ textAlign: 'center', py: 0.5, borderLeft: 1, borderColor: 'divider' }}>
-              {d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+              {d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric' })}
             </Typography>
           ))}
           {times.map((minute) => (
@@ -129,13 +140,13 @@ export default function TeamCalendar({ interviewers, minutes, selected, onPick }
                 const free = s > now ? freeAt(start) : []
                 const isSelected = selected && Date.parse(selected.start) === s
                 const label = busyHere.length
-                  ? `Busy: ${busyHere.map((r) => r.name).join(', ')}`
-                  : free.length ? `Free: ${free.map((r) => r.name).join(', ')} — click to pick` : ''
+                  ? t('Busy: {names}', { names: busyHere.map((r) => r.name).join(', ') })
+                  : free.length ? t('Free: {names} — click to pick', { names: free.map((r) => r.name).join(', ') }) : ''
                 return (
                   <Tooltip key={s} title={label} disableInteractive>
                     <Box
                       role={free.length ? 'button' : undefined}
-                      aria-label={free.length ? `${start.toLocaleString()} ${label}` : undefined}
+                      aria-label={free.length ? `${start.toLocaleString(locale())} ${label}` : undefined}
                       tabIndex={free.length ? 0 : -1}
                       onClick={() => {
                         const user = interviewers.find((u) => u.id === free[0]?.user_id)
@@ -148,12 +159,12 @@ export default function TeamCalendar({ interviewers, minutes, selected, onPick }
                       sx={{
                         height: ROW_PX, borderLeft: 1, borderTop: minute % 60 === 0 ? 1 : 0, borderColor: 'divider',
                         display: 'flex', gap: '2px', px: '2px', alignItems: 'stretch',
-                        bgcolor: isSelected ? 'primary.light' : s <= now ? 'action.disabledBackground' : undefined,
+                        bgcolor: isSelected ? 'success.main' : s <= now ? 'action.disabledBackground' : undefined,
                         cursor: free.length ? 'pointer' : 'default',
-                        '&:hover': free.length ? { bgcolor: 'action.hover' } : undefined,
+                        '&:hover': free.length && !isSelected ? { bgcolor: 'success.light' } : undefined,
                       }}>
                       {busyHere.map((r) => (
-                        <Box key={r.user_id} sx={{ flex: 1, bgcolor: colorOf(r.user_id), opacity: 0.75, borderRadius: '2px' }} />
+                        <Box key={r.user_id} sx={{ flex: 1, bgcolor: 'error.main', opacity: 0.8, borderRadius: '2px' }} />
                       ))}
                     </Box>
                   </Tooltip>
@@ -163,9 +174,11 @@ export default function TeamCalendar({ interviewers, minutes, selected, onPick }
           ))}
         </Box>
       </Box>
-      {rows === null && !error && <Typography variant="caption">Loading calendars…</Typography>}
+      {rows === null && !error && <Typography variant="caption">{t('Loading calendars…')}</Typography>}
       <Typography variant="caption" color="text.secondary" component="div">
-        Coloured = busy (interview here or Google Calendar). Click a free cell to pick it; the time is re-checked when you book.
+        <Box component="span" sx={{ display: 'inline-block', width: 10, height: 10, bgcolor: 'error.main', mr: 0.5 }} />{t('busy (interview or Google Calendar; one bar per interviewer)')}
+        <Box component="span" sx={{ display: 'inline-block', width: 10, height: 10, bgcolor: 'success.main', mx: 0.5, ml: 1.5 }} />{t('picked')}
+        · {t('white = free, click to pick. The time is re-checked when you book.')}
       </Typography>
     </Box>
   )

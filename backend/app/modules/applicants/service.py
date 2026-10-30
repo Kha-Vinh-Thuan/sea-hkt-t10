@@ -76,7 +76,9 @@ def list_for_board(session: Session, job_id: int | None, archived: bool = False,
                    priority_min: int | None = None, tag: str = "", owner_id: int | None = None) -> list[dict]:
     # cv_text can be long (searched in SQL, not sent); the board only needs the card fields.
     applicants = repository.list_by_job(session, job_id, archived, q, priority_min, tag, owner_id)
-    return [a.model_dump(exclude={"cv_text", "cv_path"}) for a in applicants]
+    booked = interview_repo.count_booked(session, [a.id for a in applicants])
+    return [{**a.model_dump(exclude={"cv_text", "cv_path"}), "interview_count": booked.get(a.id, 0)}
+            for a in applicants]
 
 def detail(session: Session, applicant_id: int) -> dict:
     applicant = get(session, applicant_id)

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField } from '@mui/material'
 import { api, type Applicant, type Job } from '../api'
+import { t } from '../i18n'
 
 type Props = { applicant: Applicant; open: boolean; onClose: () => void; onCopied: (copy: Applicant, jobTitle: string) => void }
 
@@ -32,19 +33,19 @@ export default function CopyToJobDialog({ applicant, open, onClose, onCopied }: 
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Copy {applicant.name} to another job</DialogTitle>
+      <DialogTitle>{t('Copy {name} to another job', { name: applicant.name })}</DialogTitle>
       <DialogContent>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        <TextField select fullWidth label="Job" value={jobId} sx={{ mt: 1 }}
+        <TextField select fullWidth label={t('Job')} value={jobId} sx={{ mt: 1 }}
           onChange={(e) => setJobId(Number(e.target.value))}>
           {jobs.filter((j) => j.id !== applicant.job_id).map((j) => (
-            <MenuItem key={j.id} value={j.id}>{j.title}{j.is_open ? '' : ' (closed)'}</MenuItem>
+            <MenuItem key={j.id} value={j.id}>{j.title}{j.is_open ? '' : ` (${t('closed')})`}</MenuItem>
           ))}
         </TextField>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={copy} disabled={jobId === '' || busy}>Copy</Button>
+        <Button onClick={onClose}>{t('Cancel')}</Button>
+        <Button variant="contained" onClick={copy} loading={busy} disabled={jobId === ''}>{t('Copy')}</Button>
       </DialogActions>
     </Dialog>
   )

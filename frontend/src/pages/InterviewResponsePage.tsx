@@ -1,8 +1,10 @@
 // Public page from the invitation email's Accept / Decline links (/interview/:token?answer=accept|decline, no login).
 // The answer is only recorded on a button click, not on load: mail scanners open links and must not answer for the candidate.
 import { useEffect, useState } from 'react'
-import { Alert, Button, CircularProgress, Container, Link, Paper, Stack, Typography } from '@mui/material'
-import { api, CANDIDATE_RESPONSE_LABEL, formatWhen, type CandidateInterview } from '../api'
+import { Alert, Box, Button, CircularProgress, Container, Link, Paper, Stack, Typography } from '@mui/material'
+import { api, formatWhen, type CandidateInterview } from '../api'
+import LangSwitch from '../components/LangSwitch'
+import { t } from '../i18n'
 
 export default function InterviewResponsePage({ token }: { token: string }) {
   const suggested = new URLSearchParams(window.location.search).get('answer') === 'decline' ? 'declined' : 'accepted'
@@ -28,28 +30,31 @@ export default function InterviewResponsePage({ token }: { token: string }) {
 
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}><LangSwitch /></Box>
       <Paper sx={{ p: 3 }}>
         {interview ? (
           <Stack spacing={2}>
-            <Typography variant="h5">Interview for {interview.job_title}</Typography>
+            <Typography variant="h5">{t('Interview for {job}', { job: interview.job_title })}</Typography>
             <Typography>
-              Hello {interview.candidate_name}, your interview is on {formatWhen(interview.start)}
-              {interview.location && ` (${interview.location})`}.
+              {t('Hello {name}, your interview is on {when}.', {
+                name: interview.candidate_name,
+                when: formatWhen(interview.start) + (interview.location ? ` (${interview.location})` : ''),
+              })}
             </Typography>
-            {interview.meet_url && <Link href={interview.meet_url} target="_blank" rel="noreferrer">Join with Google Meet</Link>}
-            {interview.status === 'cancelled' && <Alert severity="info">This interview has been cancelled.</Alert>}
+            {interview.meet_url && <Link href={interview.meet_url} target="_blank" rel="noreferrer">{t('Join with Google Meet')}</Link>}
+            {interview.status === 'cancelled' && <Alert severity="info">{t('This interview has been cancelled.')}</Alert>}
             {interview.candidate_response !== 'none' && (
               <Alert severity={interview.candidate_response === 'accepted' ? 'success' : 'info'}>
-                Your answer: {CANDIDATE_RESPONSE_LABEL[interview.candidate_response].replace('Candidate ', '')}. Thank you!
+                {interview.candidate_response === 'accepted' ? t('Your answer: accepted. Thank you!') : t('Your answer: declined. Thank you!')}
               </Alert>
             )}
             {error && <Alert severity="error">{error}</Alert>}
             {open && (
               <Stack direction="row" spacing={1}>
                 <Button variant={suggested === 'accepted' ? 'contained' : 'outlined'} color="success" disabled={busy}
-                  onClick={() => answer('accepted')}>I will attend</Button>
+                  onClick={() => answer('accepted')}>{t('I will attend')}</Button>
                 <Button variant={suggested === 'declined' ? 'contained' : 'outlined'} color="error" disabled={busy}
-                  onClick={() => answer('declined')}>I cannot attend</Button>
+                  onClick={() => answer('declined')}>{t('I cannot attend')}</Button>
               </Stack>
             )}
           </Stack>

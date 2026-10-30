@@ -1,4 +1,6 @@
 // Typed calls to the FastAPI backend (proxied at /api by Vite). Recruiter calls carry the login token.
+// The *_LABEL maps hold English; screens show them through t() from i18n.ts.
+import { locale } from './i18n'
 
 export type Stage = 'new' | 'screening' | 'interview' | 'offer' | 'hired' | 'rejected'
 
@@ -57,6 +59,8 @@ export type User = UserBrief & { is_active: boolean; created_at: string }
 export type UserInput = { email: string; name: string; role: Role; password: string }
 export type UserUpdate = Partial<Pick<User, 'name' | 'role' | 'is_active'>>
 
+export type Activity = { id: number; message: string; created_at: string }
+
 export type Applicant = {
   id: number
   job_id: number
@@ -85,6 +89,7 @@ export type Applicant = {
   next_action_due: string | null // YYYY-MM-DD
   hired_at: string | null // set when moved into `hired`, cleared when moved out
   next_action_user_id: number | null // who does the next step
+  interview_count?: number // board list only: scheduled or done interviews
   user_id: number | null // recruiter owner
 }
 
@@ -193,7 +198,7 @@ export type UpcomingInterview = Interview & { applicant_name: string; job_title:
 
 export type ApplicantDetail = Applicant & {
   cv_text: string
-  activity: { id: number; message: string; created_at: string }[]
+  activity: Activity[]
   interviews: Interview[]
   other_applications: OtherApplication[]
   attachments: Attachment[]
@@ -354,19 +359,31 @@ export const api = {
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
   },
   downloadCv: (id: number, filename: string) => download(`/api/applicants/${id}/cv`, filename),
+  // Object URL for an inline preview; the caller revokes it.
+  cvUrl: async (id: number) => URL.createObjectURL(await fileBlob(`/api/applicants/${id}/cv`)),
   downloadAttachment: (a: Attachment) => download(`/api/applicants/${a.applicant_id}/attachments/${a.id}`, a.filename),
 }
 
-// File links need the token too, so download through fetch instead of a plain <a href>.
-async function download(path: string, filename: string) {
+// File links need the token too, so fetch them instead of a plain <a href>.
+async function fileBlob(path: string) {
   const response = await fetch(path, { headers: { Authorization: `Bearer ${session.token()}` } })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
-  const url = URL.createObjectURL(await response.blob())
+  return response.blob()
+}
+
+async function download(path: string, filename: string) {
+  const url = URL.createObjectURL(await fileBlob(path))
   const link = Object.assign(document.createElement('a'), { href: url, download: filename })
   link.click()
   URL.revokeObjectURL(url)
 }
 
 export function formatWhen(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleString(locale(), { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
+
+// File inputs inside a <Button component="label">: hidden with CSS, not `hidden`/display:none, which some browsers
+// and extensions refuse to open from a label click.
+export const VISUALLY_HIDDEN = {
+  clip: 'rect(0 0 0 0)', clipPath: 'inset(50%)', height: 1, overflow: 'hidden', position: 'absolute', whiteSpace: 'nowrap', width: 1,
+} as const

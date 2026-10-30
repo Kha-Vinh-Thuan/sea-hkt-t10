@@ -5,6 +5,7 @@ import {
   Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, Switch, TextField,
 } from '@mui/material'
 import { api, ROLE_LABEL, type Role, type User } from '../api'
+import { t } from '../i18n'
 
 type Props = { user?: User; onClose: () => void; onSaved: () => void }
 
@@ -37,23 +38,23 @@ export default function UserDialog({ user, onClose, onSaved }: Props) {
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="xs">
       <form onSubmit={submit}>
-        <DialogTitle>{user ? `Edit ${user.email}` : 'New user'}</DialogTitle>
+        <DialogTitle>{user ? t('Edit {email}', { email: user.email }) : t('New user')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            {!user && <TextField name="email" label="Email" type="email" required autoFocus />}
-            <TextField name="name" label="Name" defaultValue={user?.name} />
-            <TextField name="role" label="Role" select defaultValue={user?.role ?? 'recruiter'}>
-              {Object.entries(ROLE_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+            {!user && <TextField name="email" label={t('Email')} type="email" required autoFocus />}
+            <TextField name="name" label={t('Name')} defaultValue={user?.name} />
+            <TextField name="role" label={t('Role')} select defaultValue={user?.role ?? 'recruiter'}>
+              {Object.entries(ROLE_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{t(label)}</MenuItem>)}
             </TextField>
-            {user && <FormControlLabel control={<Switch name="is_active" defaultChecked={user.is_active} />} label="Active" />}
-            <TextField name="password" label={user ? 'New password (leave empty to keep)' : 'Initial password'}
+            {user && <FormControlLabel control={<Switch name="is_active" defaultChecked={user.is_active} />} label={t('Active')} />}
+            <TextField name="password" label={user ? t('New password (leave empty to keep)') : t('Initial password')}
               type="password" required={!user} autoComplete="new-password" slotProps={{ htmlInput: { minLength: 8 } }} />
             {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={busy}>{user ? 'Save' : 'Create'}</Button>
+          <Button onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" variant="contained" loading={busy}>{user ? t('Save') : t('Create')}</Button>
         </DialogActions>
       </form>
     </Dialog>

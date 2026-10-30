@@ -7,6 +7,7 @@ import {
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { api, STAGE_LABEL, type MailTemplate, type Stage } from '../api'
+import { t } from '../i18n'
 
 export default function MailTemplatesPage({ onError }: { onError: (e: Error) => void }) {
   const [templates, setTemplates] = useState<MailTemplate[] | null>(null)
@@ -18,20 +19,19 @@ export default function MailTemplatesPage({ onError }: { onError: (e: Error) => 
   }, [onError])
   useEffect(load, [load])
 
-  async function remove(t: MailTemplate) {
-    if (!window.confirm(`Delete "${t.name}"?`)) return
-    try { await api.deleteMailTemplate(t.id); load() } catch (e) { setError((e as Error).message) }
+  async function remove(tpl: MailTemplate) {
+    if (!window.confirm(t('Delete "{name}"?', { name: tpl.name }))) return
+    try { await api.deleteMailTemplate(tpl.id); load() } catch (e) { setError((e as Error).message) }
   }
 
   return (
     <Stack spacing={2}>
       <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h6" fontWeight={700}>Email templates</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setEditing('new')}>New template</Button>
+        <Typography variant="h6" fontWeight={700}>{t('Email templates')}</Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setEditing('new')}>{t('New template')}</Button>
       </Stack>
       <Typography variant="body2" color="text.secondary">
-        Placeholders: {'{name}'} (applicant), {'{job}'} (job title), {'{company}'}. A template with a stage is offered
-        when an applicant is moved into that stage.
+        {t('Placeholders: {name} (applicant), {job} (job title), {company}. A template with a stage is offered when an applicant is moved into that stage.')}
       </Typography>
       {error && <Alert severity="error" onClose={() => setError('')}>{error}</Alert>}
       {!templates ? <CircularProgress /> : (
@@ -39,17 +39,17 @@ export default function MailTemplatesPage({ onError }: { onError: (e: Error) => 
           <CardContent sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
-                <TableRow><TableCell>Name</TableCell><TableCell>Subject</TableCell><TableCell>Stage</TableCell><TableCell /></TableRow>
+                <TableRow><TableCell>{t('Name')}</TableCell><TableCell>{t('Subject')}</TableCell><TableCell>{t('Stage')}</TableCell><TableCell /></TableRow>
               </TableHead>
               <TableBody>
-                {templates.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell>{t.name}{t.key && <Chip size="small" variant="outlined" label="built-in" sx={{ ml: 1 }} />}</TableCell>
-                    <TableCell>{t.subject}</TableCell>
-                    <TableCell>{t.stage ? STAGE_LABEL[t.stage] : '—'}</TableCell>
+                {templates.map((tpl) => (
+                  <TableRow key={tpl.id}>
+                    <TableCell>{tpl.name}{tpl.key && <Chip size="small" variant="outlined" label={t('built-in')} sx={{ ml: 1 }} />}</TableCell>
+                    <TableCell>{tpl.subject}</TableCell>
+                    <TableCell>{tpl.stage ? t(STAGE_LABEL[tpl.stage]) : '—'}</TableCell>
                     <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                      <Button size="small" onClick={() => setEditing(t)}>Edit</Button>
-                      <Button size="small" color="error" onClick={() => remove(t)}>Delete</Button>
+                      <Button size="small" onClick={() => setEditing(tpl)}>{t('Edit')}</Button>
+                      <Button size="small" color="error" onClick={() => remove(tpl)}>{t('Delete')}</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -90,22 +90,22 @@ function TemplateDialog({ template, onClose, onSaved }: { template?: MailTemplat
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
       <form onSubmit={submit}>
-        <DialogTitle>{template ? `Edit ${template.name}` : 'New template'}</DialogTitle>
+        <DialogTitle>{template ? t('Edit {name}', { name: template.name }) : t('New template')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <TextField name="name" label="Name" defaultValue={template?.name} required autoFocus />
-            <TextField name="stage" label="Offer when moved to stage" select defaultValue={template?.stage ?? ''}>
-              <MenuItem value="">None</MenuItem>
-              {Object.entries(STAGE_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+            <TextField name="name" label={t('Name')} defaultValue={template?.name} required autoFocus />
+            <TextField name="stage" label={t('Offer when moved to stage')} select defaultValue={template?.stage ?? ''}>
+              <MenuItem value="">{t('None')}</MenuItem>
+              {Object.entries(STAGE_LABEL).map(([value, label]) => <MenuItem key={value} value={value}>{t(label)}</MenuItem>)}
             </TextField>
-            <TextField name="subject" label="Subject" defaultValue={template?.subject} required />
-            <TextField name="body" label="Body" defaultValue={template?.body} multiline minRows={8} />
+            <TextField name="subject" label={t('Subject')} defaultValue={template?.subject} required />
+            <TextField name="body" label={t('Body')} defaultValue={template?.body} multiline minRows={8} />
             {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={busy}>{template ? 'Save' : 'Create'}</Button>
+          <Button onClick={onClose}>{t('Cancel')}</Button>
+          <Button type="submit" variant="contained" loading={busy}>{template ? t('Save') : t('Create')}</Button>
         </DialogActions>
       </form>
     </Dialog>
