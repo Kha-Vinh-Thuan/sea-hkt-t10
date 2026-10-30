@@ -1,5 +1,0 @@
-id,name,model_id,group_id/id,operation,domain
-access_proposal_user,proposal user,t10.ai.playbook.proposal,hr_recruitment.group_hr_recruitment_user,cru,
-access_proposal_manager,proposal manager,t10.ai.playbook.proposal,hr_recruitment.group_hr_recruitment_manager,crud,
-access_log_user,log user,t10.ai.log,hr_recruitment.group_hr_recruitment_user,r,
-access_cv_upload_user,cv upload user,t10.ai.cv.upload,hr_recruitment.group_hr_recruitment_user,crud,
