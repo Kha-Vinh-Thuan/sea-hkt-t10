@@ -7,23 +7,22 @@ rate-limited login once there is more than one recruiter or the app leaves local
 import base64
 import hashlib
 import hmac
-import os
 import time
 
-from fastapi import Header, HTTPException
+from app.config import settings
 
 TOKEN_TTL_SECONDS = 12 * 3600
 
 
-def _secret() -> bytes:
-    secret = os.environ.get("SECRET_KEY")
-    if not secret:
-        raise HTTPException(503, "SECRET_KEY is not set")
-    return secret.encode()
+class AuthNotConfigured(Exception):
+    pass
 
 
 def _sign(payload: str) -> str:
-    return hmac.new(_secret(), payload.encode(), hashlib.sha256).hexdigest()
+    secret = settings.secret_key()
+    if not secret:
+        raise AuthNotConfigured("SECRET_KEY is not set")
+    return hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
 
 def make_token(email: str) -> str:
@@ -45,22 +44,12 @@ def verify_token(token: str) -> str | None:
     return email
 
 
-def check_credentials(email: str, password: str) -> str | None:
-    """The recruiter email if the credentials match the env account, else None."""
-    expected_email = os.environ.get("RECRUITER_EMAIL", "")
-    expected_password = os.environ.get("RECRUITER_PASSWORD", "")
+def login(email: str, password: str) -> str | None:
+    """A token if the credentials match the env account, else None."""
+    expected_email, expected_password = settings.recruiter_account()
     if not expected_email or not expected_password:
-        raise HTTPException(503, "RECRUITER_EMAIL / RECRUITER_PASSWORD are not set")
+        raise AuthNotConfigured("RECRUITER_EMAIL / RECRUITER_PASSWORD are not set")
     # Compare both in constant time so the response time does not reveal which one was wrong.
     email_ok = hmac.compare_digest(email.strip().lower().encode(), expected_email.lower().encode())
     password_ok = hmac.compare_digest(password.encode(), expected_password.encode())
-    return expected_email if email_ok and password_ok else None
-
-
-def require_recruiter(authorization: str = Header("")) -> str:
-    """FastAPI dependency: the signed-in recruiter's email, or 401."""
-    scheme, _, token = authorization.partition(" ")
-    email = verify_token(token) if scheme.lower() == "bearer" else None
-    if not email:
-        raise HTTPException(401, "Please sign in", headers={"WWW-Authenticate": "Bearer"})
-    return email
+    return make_token(expected_email) if email_ok and password_ok else None

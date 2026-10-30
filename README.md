@@ -19,6 +19,29 @@ Scheduling an interview: length comes from the job, past times and interviewer d
 rejected, early-stage applicants move to `interview`, and both candidate and interviewer get an email
 with an `.ics` invite (adds to Gmail/Outlook calendar). A mail failure keeps the booking and is shown.
 
+## Project layout
+
+```
+docker-compose.yml           Postgres 16 + Mailpit
+backend/app/
+  main.py                    wires routers, maps service errors to HTTP
+  config/                    settings (env), database
+  modules/                   one folder per feature: jobs, applicants, interviews, auth
+    <module>/                  controller -> service -> repository -> models (+ schemas)
+  integrations/              CV files + text extraction, SMTP + .ics
+  utils/                     errors, UTC helpers
+  seed.py                    demo jobs
+backend/tests/               API tests + service tests (no HTTP)
+frontend/src/
+  api.ts                     types, fetch helpers, token
+  App.tsx                    /careers (public) vs recruiter area
+  pages/                     Careers, Login, Board (pipeline), Interviews
+  components/                ApplyForm, ApplicantDrawer, InterviewDialog, JobDialog
+docs/PLAN.md                 decisions, progress, what is left
+```
+
+Layer rules and "where to change what": [backend/README.md](backend/README.md).
+
 ## Run
 
 ```bash

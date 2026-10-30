@@ -1,12 +1,13 @@
 """Save an uploaded CV and extract its text. The apply form is public, so type and size are enforced here."""
 
 import io
-import os
 import secrets
 from pathlib import Path
 
 from docx import Document
 from pypdf import PdfReader
+
+from app.config import settings
 
 MAX_BYTES = 5 * 1024 * 1024
 ALLOWED = {".pdf", ".docx", ".txt"}
@@ -14,12 +15,6 @@ ALLOWED = {".pdf", ".docx", ".txt"}
 
 class CvError(ValueError):
     pass
-
-
-def upload_dir() -> Path:
-    path = Path(os.environ.get("UPLOAD_DIR", "uploads"))
-    path.mkdir(parents=True, exist_ok=True)
-    return path
 
 
 def extract_text(data: bytes, suffix: str) -> str:
@@ -44,5 +39,9 @@ def save_cv(filename: str, data: bytes) -> tuple[str, str]:
         raise CvError("CV must be 5 MB or smaller")
     text = extract_text(data, suffix)
     stored = f"{secrets.token_hex(16)}{suffix}"
-    (upload_dir() / stored).write_bytes(data)
+    (settings.upload_dir() / stored).write_bytes(data)
     return stored, text
+
+
+def cv_path(stored: str) -> Path:
+    return settings.upload_dir() / stored

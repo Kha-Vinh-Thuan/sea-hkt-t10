@@ -1,13 +1,9 @@
 """Demo jobs so the careers site is not empty. Run once: python -m app.seed  (skips if jobs already exist)."""
 
-from dotenv import load_dotenv
+from sqlmodel import Session, select
 
-load_dotenv()
-
-from sqlmodel import Session, select  # noqa: E402
-
-from app.core.db import create_tables, engine  # noqa: E402
-from app.models import Job  # noqa: E402
+from app.config.database import create_tables, engine
+from app.modules.jobs.models import Job
 
 JOBS = [
     Job(

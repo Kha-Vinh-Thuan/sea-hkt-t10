@@ -7,10 +7,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from app.services import interviews
-from app.core.db import get_session
+from app.modules.interviews import service as interviews
+from app.config.database import get_session
 from app.main import app
-from app.models import Job
+from app.modules.jobs.models import Job
 
 LOGIN = {"email": "hr@example.com", "password": "pw"}
 

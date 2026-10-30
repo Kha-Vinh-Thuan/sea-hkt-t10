@@ -13,8 +13,7 @@ Update in place as work moves. Section 3 tracks progress.
 | Odoo kept as reference only | Git tag `odoo-reference` has the full Odoo code; database `db-hr-sys` is still in the Postgres volume |
 | Removed `t10_ai_interview`, `rag_interview_agent`, `ml/` | Teammate experiments, not viable. The AI pipeline lives in jobhunter-platform |
 | Stack: FastAPI + SQLModel + Postgres, React + Vite + MUI | Same stack as jobhunter-platform; one backend, no extra service |
-| Three backend layers: `api/` → `services/` → `models` | Services hold the rules and never import FastAPI, so AI agents can call the same rules later. See `backend/README.md` |
-| No repository layer | SQLModel's session already is the data-access layer |
+| Backend split by feature module (`modules/jobs`, `applicants`, `interviews`, `auth`), each with controller → service → repository → models | Everything about one feature sits in one folder; services never import FastAPI, so AI agents can call the same rules later. Shared code in `config/`, `integrations/`, `utils/`. See `backend/README.md` |
 | Fixed stages in code: new → screening → interview → offer → hired / rejected | No admin screen needed for an MVP |
 | Interview invite = email with `.ics` | Gmail/Outlook add it to the calendar with no OAuth. Google Calendar sync later |
 | Mailpit in docker-compose for dev mail | Invitations can be tested without reaching real inboxes |
@@ -49,7 +48,7 @@ Update in place as work moves. Section 3 tracks progress.
 | 6 | Recruiter login (token), all recruiter routes require it | done |
 | 7 | Interviews: book with job length, reject past times and interviewer clashes, auto move to `interview`, email `.ics` to candidate + interviewer, mail failure keeps booking | done |
 | 8 | Interviews tab (upcoming list) | done |
-| 9 | Backend split into api / services / models layers, service-level tests | done |
+| 9 | Backend restructured into feature modules (controller / service / repository / models), config + integrations + utils, service-level tests. Replaces the `api/` + `services/` layout of commit 194f4a2 | done (not committed yet) |
 | 10 | Edit job screen (API `PUT /api/jobs/{id}` exists, UI missing) | next |
 | 11 | Reschedule / cancel interview (update + cancel `.ics` with same UID) | todo |
 | 12 | Migrations with Alembic (today a column change means dropping tables) | todo |
@@ -60,8 +59,9 @@ Update in place as work moves. Section 3 tracks progress.
 | 17 | Google Calendar: read interviewer busy times (freebusy), create event with Meet link | later |
 | 18 | Hook for jobhunter-platform agents: expose services as the provider the agents call | later, after harness specs |
 
-Verified now: 10 backend tests pass; frontend build and lint clean; full flow run in a real browser
-(apply → login → schedule → invite with `interview.ics` received in Mailpit → Interviews tab).
+Verified 2026-10-30: 10 backend tests pass (8 API, 2 service); frontend build and lint clean; full flow run
+in a real browser (apply → login → schedule → invite with `interview.ics` received in Mailpit → Interviews tab);
+live smoke test on Postgres + Mailpit after the module restructure.
 
 ## 4. Known limits (accepted for the demo)
 

@@ -1,11 +1,13 @@
-"""Service layer tested directly, no HTTP: the rules hold no matter which route (or agent) calls them."""
+"""Services tested directly, no HTTP: the rules hold no matter which route (or agent) calls them."""
 
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
-from app.models import Job, Stage
-from app.services import applicants
-from app.services.errors import Conflict, Invalid, NotFound
+from app.config.database import create_tables  # noqa: F401  (registers every module's tables)
+from app.modules.applicants import service as applicants
+from app.modules.applicants.models import Stage
+from app.modules.jobs.models import Job
+from app.utils.errors import Conflict, Invalid, NotFound
 
 
 @pytest.fixture
