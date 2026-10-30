@@ -20,21 +20,103 @@ Update in place as work moves. Section 3 tracks progress.
 | One recruiter account from `.env`, HMAC-signed token | Enough for a localhost demo, no user table yet |
 | No inbound mail (CV by email to an alias) | Needs a real mailbox and domain; the public apply form replaces it |
 
-## 2. What Odoo gave for free and how it is covered
+## 2. Gap vs Odoo
 
-| Odoo feature | Status here |
-|---|---|
-| Jobs, applicants, stages | Done |
-| Careers site + apply form | Done |
-| CV storage + text extraction | Done (PDF/DOCX/TXT, 5 MB, random file names) |
-| Outgoing mail | Done (SMTP; Mailpit in dev, Gmail app password for real) |
-| Calendar invite | Done as `.ics` attachment |
-| Activity log on applicants | Done (`activity` table) |
-| Login and access rights | Partial: one recruiter account, no roles |
-| Accept/Decline, reminders | Not done |
-| Google Calendar two-way sync | Not done (was never enabled on our Odoo either) |
-| Inbound mail gateway | Dropped |
-| Admin CRUD for departments, skills, degrees | Dropped: plain text fields |
+Checked against Odoo source: `hr`, `hr_recruitment`, `hr_recruitment_skills`, `hr_recruitment_survey`,
+`hr_recruitment_sms` (git tag `odoo-reference`) and `website_hr_recruitment` (inside the `odoo` docker image).
+Every Odoo recruitment feature is listed here with a decision, so nothing is lost silently.
+Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after the demo), **dropped** (with reason).
+
+### Job (`hr.job`)
+
+| Odoo | Here | Decision |
+|---|---|---|
+| name, description, requirements, department | title, description, requirements, department (text) | done |
+| address (work location) | location (text) | done |
+| `no_of_recruitment` "Target" | `openings` | done; hired / target shown on job card in #19 |
+| `no_of_hired_employee`, application counts | board count per job only | #19 |
+| open / close recruitment (`active`, `website_published`) | `is_open` | done |
+| open and close dates (Odoo has none; our own) | none | #19: `opens_on`, `closes_on`, apply blocked outside the window |
+| `employee_type_id` (full-time, intern...) | none | #19 |
+| `salary_min`, `salary_max`, `payment_interval` | none | #19 |
+| `expected_degree` | none | #19 (plain text) |
+| `recruiter_id`, `manager_id`, `interviewer_ids` | none | #13 + #14 (needs users) |
+| `tag_ids` (job tags) | none | later |
+| `website_description`, `job_details` (rich public page) | plain text description | later: Markdown rendering |
+| `survey_id` (interview form per job) | none | #21 (own scorecard instead of a survey) |
+| `job_source_ids`, email alias per job | none | dropped: no inbound mail |
+| `industry_id`, `company_id`, multi-company, currency | none | dropped: one company |
+| color, favorite, sequence, documents on job | none | dropped: UI sugar |
+
+### Applicant (`hr.applicant`)
+
+| Odoo | Here | Decision |
+|---|---|---|
+| partner_name, email_from, partner_phone | name, email, phone | done |
+| CV attachment | one CV file + extracted text | done; more attachments later |
+| `stage_id`, `date_last_stage_update`, `last_stage_id` | fixed `stage` + activity log | done; stage date in #20 |
+| chatter (messages, tracking) | auto activity log | done; manual notes in #20 |
+| `applicant_notes` | none | #20 |
+| `priority` (0–3 stars) | none | #20 |
+| `categ_ids` (tags) | none | #20 |
+| `linkedin_profile`, `availability` (start date) | none | #20 |
+| `type_id` (degree) | none | #20 (plain text) |
+| `salary_expected`, `salary_proposed` (+ extra) | none | #20 |
+| `refuse_reason_id`, `refuse_date`, refuse email template | `rejected` stage only | #16 |
+| refuse wizard: reason list (does not fit, refused by applicant: job fit / salary, job filled, duplicate, spam), optional mail | none | #16: same reason list, mail optional |
+| mail templates: refuse, interest, congratulations (hired), not interested | invite mail only | #16 refuse; #22 interest + congratulations |
+| `archive_applicant` / `reset_applicant` (restore to first stage) | none | #20 |
+| `action_job_add_applicants` (copy applicant to another job) | none | later |
+| scheduled activities (to-do with deadline and owner, `mail.activity`) | none | later: "next step + due date" on applicant |
+| attachments other than the CV (`attachment_ids`) | one CV | later |
+| `application_status` (ongoing / hired / refused / archived), `active` | stage only | #20: archive flag |
+| `kanban_state` (blocked / ready), stage `rotting_threshold_days` | none | later: "stuck for N days" badge |
+| `recruiter_id`, `interviewer_ids` per applicant | none | #13 + #14 |
+| `date_closed` (hire date), days to open / close, delay | none | later: simple reporting |
+| duplicates by email / phone (`application_count`) | duplicate blocked per job only | later: "also applied to" in the panel |
+| `skill_ids`, matching / missing skills, `matching_score` | CV text only | later: the Filter agent produces the score |
+| talent pool (`talent_pool_ids`) | none | later |
+| source / medium / campaign (UTM) | none | later: one `source` text field |
+| `employee_id` (create employee on hire) | none | dropped: we stop at hired, no HR core |
+| SMS (`hr_recruitment_sms`) | none | dropped: email only |
+| `probability`, color, sequence, properties | none | dropped |
+
+### Stages (`hr.recruitment.stage`)
+
+| Odoo | Here | Decision |
+|---|---|---|
+| configurable stages, `fold`, `hired_stage`, per-job stages | fixed enum in code | dropped for MVP: no admin screen |
+| default stages: New, Qualification, First Interview, Second Interview, Contract Proposal, Contract Signed | new, screening, interview, offer, hired, rejected | done; several interview rounds = several interviews in one `interview` stage |
+| stage `requirements` text, email template on stage enter | none | later (rejection mail is #16) |
+
+### Interviews (`calendar.event` + `hr_recruitment_survey`)
+
+| Odoo | Here | Decision |
+|---|---|---|
+| meeting linked to applicant, attendees, invite mail | interview + `.ics` mail | done |
+| reschedule / cancel with update mail | none | #11 |
+| attendee Accept / Decline, reminders | none | later |
+| interview survey per applicant (scores, answers) | none | #21: scorecard (score 1–5, verdict, notes) per interview |
+| interview status (done / no-show) | none | #21 |
+| Google / Outlook calendar sync | none | #17 |
+
+### Platform features
+
+| Odoo | Here | Decision |
+|---|---|---|
+| users, groups (officer / manager / interviewer) | one recruiter from `.env` | #13 |
+| inbound mail gateway (CV to an alias) | public apply form | dropped: needs a real mailbox and domain |
+| reporting, digest emails | none | later |
+| multi-language website, i18n | English UI | dropped |
+| careers list filters: country, department, office, remote, employment type | plain list | #23: filter by department, location, remote, type |
+| job page: department, location, remote flag, employment type, publish toggle | title, department, location, description | #19 adds remote + type; #23 shows them |
+| apply form: name, email, phone, LinkedIn, short introduction, CV | name, email, phone, CV | #23: LinkedIn + short introduction |
+| `/jobs/add` (create job from the website) | recruiter board "New job" | done |
+| job platforms (parse LinkedIn / Indeed / JobsDB mails) | none | dropped: needs inbound mail |
+| CV OCR to fill applications (`hr_recruitment_extract`, paid) | text extraction only | dropped: Filter agent reads the CV text |
+| talent pool (`hr.talent.pool`: name, manager, talents, tags) | none | later |
+| department dashboard (new applicants, expected hires) | none | later: reporting |
+| digest emails, guided tour, demo scenario | seed data | dropped |
 
 ## 3. Progress
 
@@ -48,18 +130,25 @@ Update in place as work moves. Section 3 tracks progress.
 | 6 | Recruiter login (token), all recruiter routes require it | done |
 | 7 | Interviews: book with job length, reject past times and interviewer clashes, auto move to `interview`, email `.ics` to candidate + interviewer, mail failure keeps booking | done |
 | 8 | Interviews tab (upcoming list) | done |
-| 9 | Backend restructured into feature modules (controller / service / repository / models), config + integrations + utils, service-level tests. Replaces the `api/` + `services/` layout of commit 194f4a2 | done (not committed yet) |
-| 10 | Edit job screen (API `PUT /api/jobs/{id}` exists, UI missing) | next |
+| 9 | Backend restructured into feature modules (controller / service / repository / models), config + integrations + utils, service-level tests. Replaces the `api/` + `services/` layout of commit 194f4a2 | done (fe079a4) |
+| 10 | Edit job screen (API `PUT /api/jobs/{id}` exists, UI missing) | next, with #19 |
 | 11 | Reschedule / cancel interview (update + cancel `.ics` with same UID) | todo |
-| 12 | Migrations with Alembic (today a column change means dropping tables) | todo |
+| 12 | Migrations with Alembic: `migrations/`, revision 0001 = current schema, app upgrades on startup, test checks models == migrations | done |
 | 13 | Users table: several recruiters/interviewers, hashed passwords, roles | todo |
 | 14 | Interviewer list per job (pick from users instead of typing an email) | todo |
 | 15 | Search / filter applicants, drag-and-drop between stages | todo |
 | 16 | Rejection email to candidates | todo |
 | 17 | Google Calendar: read interviewer busy times (freebusy), create event with Meet link | later |
 | 18 | Hook for jobhunter-platform agents: expose services as the provider the agents call | later, after harness specs |
+| 19 | Job fields: open/close dates (apply blocked outside), target vs hired, employment type, salary range, degree; edit job UI (#10) shows them | todo |
+| 20 | Applicant fields: notes, priority stars, tags, LinkedIn, start date, degree, expected/proposed salary, archive, last stage change date | todo |
+| 21 | Interview scorecard: score, verdict, notes per interview; status done / no-show | todo |
+| 22 | Candidate emails: interest (after apply) and congratulations (hired) | todo |
+| 23 | Careers site: filters (department, location, remote, type); apply form adds LinkedIn + short introduction | todo |
 
-Verified 2026-10-30: 10 backend tests pass (8 API, 2 service); frontend build and lint clean; full flow run
+Suggested order: #12 Alembic first (every new field needs it), then #19 + #10, #20, #16, #11 + #21, #22, #23, then #13 + #14.
+
+Verified 2026-10-30: 11 backend tests pass (8 API, 2 service, 1 migration); frontend build and lint clean; full flow run
 in a real browser (apply → login → schedule → invite with `interview.ics` received in Mailpit → Interviews tab);
 live smoke test on Postgres + Mailpit after the module restructure.
 

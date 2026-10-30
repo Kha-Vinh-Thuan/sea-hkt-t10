@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.config.database import create_tables
+from app.config.database import migrate
 from app.modules.applicants import controller as applicants
 from app.modules.auth import controller as auth
 from app.modules.interviews import controller as interviews
@@ -20,7 +20,7 @@ from app.utils.errors import ServiceError
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    create_tables()
+    migrate()
     yield
 
 

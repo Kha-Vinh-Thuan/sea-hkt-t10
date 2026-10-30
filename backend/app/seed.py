@@ -2,7 +2,7 @@
 
 from sqlmodel import Session, select
 
-from app.config.database import create_tables, engine
+from app.config.database import engine, migrate
 from app.modules.jobs.models import Job
 
 JOBS = [
@@ -43,7 +43,7 @@ JOBS = [
 ]
 
 if __name__ == "__main__":
-    create_tables()
+    migrate()
     with Session(engine) as session:
         if session.exec(select(Job)).first():
             print("Jobs already exist, skipping seed.")

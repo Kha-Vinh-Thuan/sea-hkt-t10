@@ -3,7 +3,7 @@
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
-from app.config.database import create_tables  # noqa: F401  (registers every module's tables)
+from app.config.database import import_models
 from app.modules.applicants import service as applicants
 from app.modules.applicants.models import Stage
 from app.modules.jobs.models import Job
@@ -13,6 +13,7 @@ from app.utils.errors import Conflict, Invalid, NotFound
 @pytest.fixture
 def session(tmp_path, monkeypatch):
     monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    import_models()
     engine = create_engine("sqlite://")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as s:

@@ -52,7 +52,7 @@ python -m venv .venv && source .venv/Scripts/activate
 pip install -r requirements.txt
 cp .env.example .env                       # set SECRET_KEY and RECRUITER_PASSWORD
 python -m pytest -q                        # SQLite in memory, mail stubbed
-python -m app.seed                         # 3 demo jobs (skips if jobs exist)
+python -m app.seed                         # runs migrations, then 3 demo jobs (skips if jobs exist)
 uvicorn app.main:app --reload --port 8000
 
 cd ../frontend
@@ -62,6 +62,9 @@ npm run dev                                # http://localhost:5173
 
 Invitation emails land in Mailpit: http://localhost:8025. For real delivery set the Gmail SMTP values
 in `backend/.env` (see comments in `.env.example`).
+
+Database made before Alembic (tables already exist): run `alembic stamp 0001` once in `backend/`.
+New column: edit the model, `alembic revision --autogenerate -m "..."`, then restart (startup upgrades).
 
 The old Odoo database `db-hr-sys` is still in the same Postgres volume for reference.
 Single recruiter account from `.env`: fine for a localhost demo, not for a public deployment.
