@@ -63,7 +63,8 @@ def test_refuse_records_reason_and_emails(recruiter, candidate_mails):
     assert result["emailed"] is True and result["mail_error"] is None
     assert result["applicant"]["stage"] == "rejected" and result["applicant"]["refuse_reason"] == "refused_salary"
     assert result["applicant"]["refused_at"]
-    assert candidate_mails[-1]["subject"] == "Your application for Backend Developer"
+    # Withdrawn by the applicant (salary): the "not interested" template, see test_applicant_more.py.
+    assert candidate_mails[-1]["subject"] == "Sorry to see you go: Backend Developer"
     assert recruiter.post(f"/api/applicants/{applicant_id}/refuse", json={"reason": "bogus"}).status_code == 422
 
 

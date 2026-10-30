@@ -186,3 +186,10 @@ def test_recruiter_job_list_counts_hired(recruiter):
     recruiter.patch(f"/api/applicants/{hired}/stage", json={"stage": "hired"})
     job = next(j for j in recruiter.get("/api/jobs").json() if j["id"] == 1)
     assert (job["applicant_count"], job["hired_count"], job["openings"]) == (2, 1, 1)
+
+def test_login_is_locked_after_repeated_failures(client):
+    wrong = {**LOGIN, "password": "wrong"}
+    assert [client.post("/api/auth/login", json=wrong).status_code for _ in range(6)] == [401] * 5 + [429]
+    # Even the right password waits out the window; another email from the same client is unaffected.
+    assert client.post("/api/auth/login", json=LOGIN).status_code == 429
+    assert client.post("/api/auth/login", json={**wrong, "email": "other@example.com"}).status_code == 401

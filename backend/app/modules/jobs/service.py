@@ -62,11 +62,19 @@ def check_ranges(data: JobIn) -> None:
     if data.salary_min is not None and data.salary_max is not None and data.salary_max < data.salary_min:
         raise Invalid("Maximum salary must be at least the minimum salary")
 
+def clean(session: Session, data: JobIn) -> dict:
+    """Validated column values: ranges ok, recruiter/manager are active users, tags trimmed and deduped."""
+    check_ranges(data)
+    user_service.check_active_ids(session, [i for i in (data.recruiter_id, data.manager_id) if i is not None])
+    values = data.model_dump(exclude={"interviewer_ids"})
+    values["tags"] = list(dict.fromkeys(t.strip() for t in data.tags if t.strip()))
+    return values
+
 
 def create(session: Session, data: JobIn) -> dict:
-    check_ranges(data)
+    values = clean(session, data)
     interviewer_ids = user_service.check_active_ids(session, data.interviewer_ids or [])
-    job = Job.model_validate(data.model_dump(exclude={"interviewer_ids"}))
+    job = Job.model_validate(values)
     session.add(job)
     session.flush()  # assigns job.id for the link rows
     repository.set_interviewers(session, job.id, interviewer_ids)
@@ -74,11 +82,11 @@ def create(session: Session, data: JobIn) -> dict:
 
 
 def update(session: Session, job_id: int, data: JobIn) -> dict:
-    check_ranges(data)
+    values = clean(session, data)
     job = get(session, job_id)
     if data.interviewer_ids is not None:
         repository.set_interviewers(session, job.id, user_service.check_active_ids(session, data.interviewer_ids))
-    job.sqlmodel_update(data.model_dump(exclude={"interviewer_ids"}))
+    job.sqlmodel_update(values)
     return _saved(session, job)
 
 

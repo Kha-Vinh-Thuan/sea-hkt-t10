@@ -23,6 +23,11 @@ class ApplicantUpdate(BaseModel):
     source_detail: str = Field("", max_length=200)
     next_action: str = Field("", max_length=500)
     next_action_due: date | None = None
+    next_action_user_id: int | None = None  # active user, or None
+    user_id: int | None = None              # recruiter owner: active user, or None
+
+class CopyIn(BaseModel):
+    job_id: int
 
 class RefuseIn(BaseModel):
     reason: RefuseReason

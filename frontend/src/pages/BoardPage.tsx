@@ -1,4 +1,4 @@
-// Recruiter area: "Pipeline" (jobs + applicants by stage) and "Interviews" (upcoming list).
+// Recruiter area: "Pipeline" (jobs + applicants by stage), "Interviews" (upcoming list), "Reports", "Talent pools".
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert, AppBar, Box, Button, Chip, CircularProgress, List, ListItemButton, ListItemText, Paper, Stack, Tab,
@@ -8,18 +8,23 @@ import AddIcon from '@mui/icons-material/Add'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline'
-import { api, STAGE_LABEL, UnauthorizedError, type Applicant, type ApplicantFilters, type Job, type Stage } from '../api'
+import {
+  api, loadStageRules, STAGE_LABEL, UnauthorizedError, type Applicant, type ApplicantFilters, type Job, type Stage, type UserBrief,
+} from '../api'
 import ApplicantDrawer from '../components/ApplicantDrawer'
 import BoardFilters from '../components/BoardFilters'
 import JobDialog from '../components/JobDialog'
 import RefuseDialog from '../components/RefuseDialog'
 import StageColumn from '../components/StageColumn'
 import InterviewsPage from './InterviewsPage'
+import ReportsPage from './ReportsPage'
+import TalentPoolsPage from './TalentPoolsPage'
 
 export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) {
-  const [tab, setTab] = useState<'pipeline' | 'interviews'>('pipeline')
+  const [tab, setTab] = useState<'pipeline' | 'interviews' | 'reports' | 'pools'>('pipeline')
   const [jobs, setJobs] = useState<Job[]>([])
   const [stages, setStages] = useState<Stage[]>([])
+  const [users, setUsers] = useState<UserBrief[]>([])
   const [applicants, setApplicants] = useState<Applicant[] | null>(null)
   const [jobId, setJobId] = useState<number>()
   const [openId, setOpenId] = useState<number>()
@@ -34,8 +39,8 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
   const loadApplicants = useCallback((id: number) => api.applicants(id, filters).then(setApplicants), [filters])
 
   useEffect(() => {
-    Promise.all([loadJobs(), api.stages()])
-      .then(([j, s]) => { setStages(s); setJobId(j[0]?.id) })
+    Promise.all([loadJobs(), api.stages(), api.users(), loadStageRules()])
+      .then(([j, s, u]) => { setStages(s); setUsers(u); setJobId(j[0]?.id) })
       .catch(fail)
   }, [loadJobs, fail])
 
@@ -46,6 +51,10 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
   }, [jobId, loadApplicants, fail])
 
   const selectedJob = jobs.find((j) => j.id === jobId)
+  const recruiterOf = (job: Job) => {
+    const u = users.find((x) => x.id === job.recruiter_id)
+    return u ? ` · ${u.name || u.email}` : ''
+  }
 
   function refresh() {
     if (jobId !== undefined) loadApplicants(jobId).catch(fail)
@@ -77,6 +86,8 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
           <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ flex: 1 }}>
             <Tab value="pipeline" label="Pipeline" />
             <Tab value="interviews" label="Interviews" />
+            <Tab value="reports" label="Reports" />
+            <Tab value="pools" label="Talent pools" />
           </Tabs>
           <Button href="/careers" target="_blank" endIcon={<OpenInNewIcon />}>Careers site</Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialog('new')}>New job</Button>
@@ -87,6 +98,10 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
 
       {tab === 'interviews' ? (
         <Box sx={{ p: 2 }}><InterviewsPage onError={fail} /></Box>
+      ) : tab === 'reports' ? (
+        <Box sx={{ p: 2 }}><ReportsPage onError={fail} /></Box>
+      ) : tab === 'pools' ? (
+        <Box sx={{ p: 2 }}><TalentPoolsPage onError={fail} /></Box>
       ) : (
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
           <Paper square elevation={0} sx={{ width: { md: 280 }, borderRight: { md: 1 }, borderColor: 'divider', flexShrink: 0 }}>
@@ -97,7 +112,7 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
               {jobs.map((job) => (
                 <ListItemButton key={job.id} selected={job.id === jobId} onClick={() => setJobId(job.id)}>
                   <ListItemText primary={job.title}
-                    secondary={`${job.is_open ? job.department || 'Open' : 'Closed'} · ${job.hired_count} / ${job.openings} hired`} />
+                    secondary={`${job.is_open ? job.department || 'Open' : 'Closed'} · ${job.hired_count} / ${job.openings} hired${recruiterOf(job)}`} />
                   <Chip size="small" label={job.applicant_count} />
                 </ListItemButton>
               ))}

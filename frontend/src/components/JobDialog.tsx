@@ -1,7 +1,7 @@
 // Dialog to create a job position, or edit one when `job` is given.
 import { useEffect, useState, type FormEvent } from 'react'
 import {
-  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, Switch, TextField,
+  Alert, Autocomplete, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, Switch, TextField,
 } from '@mui/material'
 import { api, EMPLOYMENT_LABEL, type EmploymentType, type Job, type UserBrief } from '../api'
 
@@ -13,6 +13,7 @@ export default function JobDialog({ open, job, onClose, onSaved }: Props) {
   const [busy, setBusy] = useState(false)
   const [users, setUsers] = useState<UserBrief[]>([])
   const [interviewerIds, setInterviewerIds] = useState<number[]>(job?.interviewer_ids ?? [])
+  const [tags, setTags] = useState<string[]>(job?.tags ?? [])
 
   useEffect(() => {
     if (open) api.users().then(setUsers).catch((e: Error) => setError(e.message))
@@ -41,6 +42,9 @@ export default function JobDialog({ open, job, onClose, onSaved }: Props) {
       salary_max: numberOrNull('salary_max'),
       expected_degree: text('expected_degree'),
       interviewer_ids: interviewerIds,
+      recruiter_id: numberOrNull('recruiter_id'),
+      manager_id: numberOrNull('manager_id'),
+      tags,
     }
     setBusy(true)
     setError('')
@@ -97,6 +101,22 @@ export default function JobDialog({ open, job, onClose, onSaved }: Props) {
                 defaultValue={job?.interview_duration_minutes ?? 45} required fullWidth slotProps={{ htmlInput: { min: 5 } }} />
               <TextField name="openings" label="Openings" type="number" defaultValue={job?.openings ?? 1} required fullWidth
                 slotProps={{ htmlInput: { min: 0 } }} />
+            </Stack>
+            <Autocomplete
+              multiple freeSolo options={[]} value={tags}
+              onChange={(_e, value) => setTags(value as string[])}
+              renderValue={(value, getItemProps) =>
+                value.map((tag, index) => <Chip size="small" label={tag} {...getItemProps({ index })} key={tag} />)}
+              renderInput={(params) => <TextField {...params} label="Tags" placeholder="Type and press Enter" />}
+            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              {(['recruiter_id', 'manager_id'] as const).map((key) => (
+                <TextField key={key} name={key} label={key === 'recruiter_id' ? 'Recruiter' : 'Hiring manager'} select
+                  fullWidth defaultValue={job?.[key] ?? ''}>
+                  <MenuItem value="">None</MenuItem>
+                  {users.map((u) => <MenuItem key={u.id} value={u.id}>{u.name || u.email}</MenuItem>)}
+                </TextField>
+              ))}
             </Stack>
             <TextField label="Interviewers" select fullWidth value={interviewerIds}
               helperText="Offered first when booking an interview for this job"

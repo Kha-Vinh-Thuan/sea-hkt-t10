@@ -25,6 +25,10 @@ app/
       emails.py              candidate email texts (received, refusal, congratulations)
     interviews/            book / reschedule / cancel (.ics with stable UID), feedback scorecard
       controller.py  service.py  repository.py  models.py  schemas.py
+    reports/               GET /api/reports/summary: per job counts by stage / source / refuse reason, hired vs openings, avg days to hire
+      controller.py  service.py   (no tables, reads applicants and jobs)
+    talent_pools/          named groups of applicants to contact later (Odoo hr.talent.pool)
+      controller.py  service.py  repository.py  models.py  schemas.py
     auth/                  login + token
       controller.py          POST /api/auth/login, GET /api/auth/me
       service.py             token signing (user id + role), reloads the user on every request
@@ -47,6 +51,9 @@ tests/
   test_applicant_actions.py  edit fields, refuse, archive / restore, candidate emails
   test_interviews.py       reschedule, cancel, feedback
   test_services.py         services directly, no HTTP
+  test_reports_pools.py    hire date, reports summary, stage requirements, talent pools
+  test_job_extras.py       job recruiter / manager, tags
+  test_applicant_more.py   copy to job, attachments, owner, "not interested" mail
   test_migrations.py       migrations == models (fails if you forgot a revision)
 ```
 

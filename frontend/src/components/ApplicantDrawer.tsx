@@ -1,19 +1,24 @@
-// Side panel for one applicant: contact, stage, refuse / archive, recruiter fields, interviews, CV text, activity log.
+// Side panel for one applicant: contact, stage, refuse / archive / copy to job, interviews, attachments, recruiter
+// fields, CV text, activity log.
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert, Box, Button, Chip, CircularProgress, Divider, Drawer, IconButton, Link, MenuItem, Stack, TextField, Typography,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DownloadIcon from '@mui/icons-material/Download'
 import EventIcon from '@mui/icons-material/Event'
 import {
-  api, daysInStage, isStuck, REFUSE_REASON_LABEL, SOURCE_LABEL, STAGE_LABEL, type ApplicantDetail, type Stage,
+  api, daysInStage, isStuck, SOURCE_LABEL, STAGE_LABEL, type ApplicantDetail, type Stage, type StageRules,
 } from '../api'
 import ApplicantFields from './ApplicantFields'
+import AttachmentList from './AttachmentList'
+import CopyToJobDialog from './CopyToJobDialog'
 import InterviewDialog from './InterviewDialog'
 import InterviewItem from './InterviewItem'
 import OtherApplications from './OtherApplications'
 import RefuseDialog from './RefuseDialog'
+import TalentPoolPicker from './TalentPoolPicker'
 
 type Props = { applicantId?: number; stages: Stage[]; onClose: () => void; onChanged: () => void }
 
@@ -31,6 +36,16 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
   const [notice, setNotice] = useState<{ severity: 'success' | 'warning'; text: string } | null>(null)
   const [booking, setBooking] = useState(false)
   const [refusing, setRefusing] = useState(false)
+  const [reasonLabels, setReasonLabels] = useState<Record<string, string>>({})
+
+  // Labels come from the backend so the list lives in one place.
+  useEffect(() => {
+    api.refuseReasons().then((r) => setReasonLabels(Object.fromEntries(r.map((o) => [o.value, o.label])))).catch(() => {})
+  }, [])
+  const [requirements, setRequirements] = useState<StageRules['requirements']>()
+
+  useEffect(() => { api.stageRules().then((r) => setRequirements(r.requirements)).catch(() => {}) }, []) // hint only
+  const [copying, setCopying] = useState(false)
 
   const reload = useCallback(async (id: number) => setApplicant(await api.applicant(id)), [])
 
@@ -79,7 +94,7 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
 
             {applicant.archived && <Alert severity="info">Archived: hidden from the board.</Alert>}
             {applicant.refuse_reason && (
-              <Alert severity="warning">Refused: {REFUSE_REASON_LABEL[applicant.refuse_reason]}</Alert>
+              <Alert severity="warning">Refused: {reasonLabels[applicant.refuse_reason] ?? applicant.refuse_reason}</Alert>
             )}
 
             {/* `rejected` is only reachable through Refuse, so a reason is always recorded. */}
@@ -90,6 +105,9 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
                 <MenuItem key={s} value={s} disabled={s === 'rejected'}>{STAGE_LABEL[s]}</MenuItem>
               ))}
             </TextField>
+            {requirements?.[applicant.stage] && (
+              <Alert severity="info" variant="outlined">To move on: {requirements[applicant.stage]}</Alert>
+            )}
 
             <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
               {isStuck(applicant) && <Chip size="small" color="warning" label="Stuck in this stage" />}
@@ -101,6 +119,8 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
                   label={`${applicant.next_action_due < today() ? 'Overdue' : 'Due'} ${applicant.next_action_due}`} />
               )}
             </Stack>
+
+            <TalentPoolPicker applicantId={applicant.id} onError={setError} onChanged={() => reload(applicant.id)} />
 
             <OtherApplications items={applicant.other_applications}
               onOpen={(id) => setSwitched({ from: openedId, to: id })} />
@@ -115,6 +135,7 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
               {!applicant.archived && (
                 <Button variant="outlined" onClick={() => run(() => api.archive(applicant.id))}>Archive</Button>
               )}
+              <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => setCopying(true)}>Copy to job</Button>
             </Stack>
 
             <Stack direction="row" spacing={1}>
@@ -137,6 +158,9 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
                 ))}
               </>
             )}
+
+            <AttachmentList applicantId={applicant.id} items={applicant.attachments} onError={setError}
+              onChanged={() => run(async () => {})} />
 
             <Divider />
             <ApplicantFields key={applicant.id} applicant={applicant} onError={setError}
@@ -173,6 +197,15 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
             run(async () => {})
           }}
         />
+      )}
+
+      {applicant && (
+        <CopyToJobDialog applicant={applicant} open={copying} onClose={() => setCopying(false)}
+          onCopied={(_copy, jobTitle) => {
+            setCopying(false)
+            setNotice({ severity: 'success', text: `Copied to ${jobTitle}.` })
+            run(async () => {}) // "Also applied to" now lists the copy
+          }} />
       )}
 
       {applicant && (

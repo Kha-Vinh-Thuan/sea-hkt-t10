@@ -1,4 +1,4 @@
-// Board toolbar: search (name / email / CV / tags), minimum priority, exact tag, and the archived switch.
+// Board toolbar: search (name / email / CV / tags), minimum priority, exact tag, "mine" (I own) and archived switches.
 import { useEffect, useState } from 'react'
 import { FormControlLabel, InputAdornment, MenuItem, Stack, Switch, TextField } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
@@ -34,6 +34,9 @@ export default function BoardFilters({ value, onChange }: Props) {
       </TextField>
       <TextField size="small" label="Tag" value={tag} onChange={(e) => setTag(e.target.value)} sx={{ width: 140 }}
         slotProps={{ htmlInput: { maxLength: 100 } }} />
+      <FormControlLabel label="Mine"
+        control={<Switch checked={value.owner === 'me'}
+          onChange={(e) => onChange({ ...value, owner: e.target.checked ? 'me' : undefined })} />} />
       <FormControlLabel label="Show archived"
         control={<Switch checked={!!value.archived} onChange={(e) => onChange({ ...value, archived: e.target.checked })} />} />
     </Stack>

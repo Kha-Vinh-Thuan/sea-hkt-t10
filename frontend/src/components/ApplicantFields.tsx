@@ -1,7 +1,8 @@
-// Recruiter-editable fields of one applicant (stars, tags, notes, next step, source, LinkedIn, degree, dates, salaries) + Save.
-import { useState } from 'react'
+// Recruiter-editable fields of one applicant (stars, tags, notes, next step + who, owner, source, LinkedIn, degree,
+// dates, salaries) + Save.
+import { useEffect, useState } from 'react'
 import { Autocomplete, Button, Chip, MenuItem, Rating, Stack, TextField, Typography } from '@mui/material'
-import { api, SOURCE_LABEL, type ApplicantDetail, type ApplicantUpdate, type Source } from '../api'
+import { api, SOURCE_LABEL, type ApplicantDetail, type ApplicantUpdate, type Source, type UserBrief } from '../api'
 
 type Props = { applicant: ApplicantDetail; onSaved: () => void; onError: (message: string) => void }
 
@@ -9,7 +10,11 @@ const toForm = (a: ApplicantDetail): ApplicantUpdate => ({
   notes: a.notes, priority: a.priority, tags: a.tags, linkedin: a.linkedin, available_from: a.available_from,
   degree: a.degree, salary_expected: a.salary_expected, salary_proposed: a.salary_proposed,
   source: a.source, source_detail: a.source_detail, next_action: a.next_action, next_action_due: a.next_action_due,
+  next_action_user_id: a.next_action_user_id, user_id: a.user_id,
 })
+
+// Select value '' means "nobody" (null in the API).
+const toUserId = (value: string) => (value === '' ? null : Number(value))
 
 // Empty number inputs mean "not set" (null), not 0.
 const toNumber = (value: string) => (value === '' ? null : Number(value))
@@ -19,6 +24,18 @@ export default function ApplicantFields({ applicant, onSaved, onError }: Props) 
   const [form, setForm] = useState<ApplicantUpdate>(() => toForm(applicant))
   const [busy, setBusy] = useState(false)
   const set = (patch: Partial<ApplicantUpdate>) => setForm((f) => ({ ...f, ...patch }))
+  const [users, setUsers] = useState<UserBrief[]>([])
+
+  useEffect(() => { api.users().then(setUsers).catch((e: Error) => onError(e.message)) }, [onError])
+
+  // Active users only; a since-deactivated owner stays listed so the select still shows who it was.
+  const userSelect = (label: string, value: number | null, onChange: (id: number | null) => void) => (
+    <TextField select label={label} fullWidth value={value ?? ''} onChange={(e) => onChange(toUserId(e.target.value))}>
+      <MenuItem value="">Nobody</MenuItem>
+      {value !== null && !users.some((u) => u.id === value) && <MenuItem value={value}>Inactive user #{value}</MenuItem>}
+      {users.map((u) => <MenuItem key={u.id} value={u.id}>{u.name || u.email}</MenuItem>)}
+    </TextField>
+  )
 
   async function save() {
     setBusy(true)
@@ -53,6 +70,10 @@ export default function ApplicantFields({ applicant, onSaved, onError }: Props) 
         <TextField label="Due" type="date" value={form.next_action_due ?? ''} sx={{ minWidth: 160 }}
           slotProps={{ inputLabel: { shrink: true } }}
           onChange={(e) => set({ next_action_due: e.target.value || null })} />
+      </Stack>
+      <Stack direction="row" spacing={1}>
+        {userSelect('Next step by', form.next_action_user_id, (id) => set({ next_action_user_id: id }))}
+        {userSelect('Recruiter (owner)', form.user_id, (id) => set({ user_id: id }))}
       </Stack>
       <Stack direction="row" spacing={1}>
         <TextField select label="Source" fullWidth value={form.source}

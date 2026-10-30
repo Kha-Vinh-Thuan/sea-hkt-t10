@@ -3,6 +3,7 @@
 from datetime import date, datetime
 from enum import StrEnum
 
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
 from app.utils.time import utc_field, utcnow
@@ -33,6 +34,9 @@ class Job(SQLModel, table=True):
     salary_min: int | None = Field(default=None, ge=0)
     salary_max: int | None = Field(default=None, ge=0)
     expected_degree: str = ""
+    recruiter_id: int | None = Field(default=None, foreign_key="app_user.id")
+    manager_id: int | None = Field(default=None, foreign_key="app_user.id")
+    tags: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     created_at: datetime = utc_field(default_factory=utcnow)
 
 class JobInterviewer(SQLModel, table=True):

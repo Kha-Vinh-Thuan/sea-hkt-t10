@@ -25,8 +25,17 @@ function JobMeta({ job }: { job: PublicJob }) {
       {job.location && <Chip size="small" variant="outlined" icon={<PlaceOutlinedIcon />} label={job.location} />}
       <Chip size="small" variant="outlined" label={EMPLOYMENT_LABEL[job.employment_type]} />
       {job.is_remote && <Chip size="small" color="primary" variant="outlined" label="Remote" />}
+      {job.tags.map((tag) => <Chip key={tag} size="small" color="secondary" variant="outlined" label={tag} />)}
     </Stack>
   )
+}
+
+// ponytail: plain text + clickable bare http(s) URLs; swap for a markdown renderer if rich formatting is needed.
+function Linkified({ text }: { text: string }) {
+  // split() with a capture group keeps the URLs at odd indexes; trailing punctuation stays outside the link.
+  return text.split(/(https?:\/\/[^\s<>"]*[^\s<>".,;:!?)])/).map((part, i) => (i % 2
+    ? <Link key={i} href={part} target="_blank" rel="noopener noreferrer">{part}</Link>
+    : part))
 }
 
 // Every filter value maps to a predicate; '' means "any".
@@ -115,11 +124,11 @@ function JobDetail({ jobId }: { jobId: number }) {
           )}
         </Stack>
         <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>About the role</Typography>
-        <Typography sx={{ whiteSpace: 'pre-line' }}>{job.description}</Typography>
+        <Typography sx={{ whiteSpace: 'pre-line' }}><Linkified text={job.description} /></Typography>
         {job.requirements && (
           <>
             <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Requirements</Typography>
-            <Typography sx={{ whiteSpace: 'pre-line' }}>{job.requirements}</Typography>
+            <Typography sx={{ whiteSpace: 'pre-line' }}><Linkified text={job.requirements} /></Typography>
           </>
         )}
       </Box>

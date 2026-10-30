@@ -24,6 +24,7 @@ export type PublicJob = {
   salary_min: number | null // monthly, VND
   salary_max: number | null
   expected_degree: string
+  tags: string[]
   opens_on: string | null // YYYY-MM-DD
   closes_on: string | null
 }
@@ -35,6 +36,8 @@ export type Job = PublicJob & {
   applicant_count: number
   hired_count: number
   interviewer_ids: number[]
+  recruiter_id: number | null
+  manager_id: number | null
 }
 
 export type JobInput = Omit<Job, 'id' | 'applicant_count' | 'hired_count'>
@@ -79,43 +82,58 @@ export type Applicant = {
   source_detail: string
   next_action: string
   next_action_due: string | null // YYYY-MM-DD
+  hired_at: string | null // set when moved into `hired`, cleared when moved out
+  next_action_user_id: number | null // who does the next step
+  user_id: number | null // recruiter owner
 }
 
-// Mirror of the backend's STUCK_AFTER_DAYS (GET /api/stage-rules); null = never stuck.
-export const STUCK_AFTER_DAYS: Record<Stage, number | null> = {
-  new: 3, screening: 5, interview: 7, offer: 5, hired: null, rejected: null,
+// GET /stage-rules: requirements = what must be true to leave the stage ('' = none).
+export type StageRules = { stuck_after_days: Record<Stage, number | null>; requirements: Record<Stage, string> }
+
+// GET /reports/summary: one row per job; the count maps hold every key, zero included.
+export type JobReport = {
+  job_id: number
+  title: string
+  is_open: boolean
+  total: number
+  by_stage: Record<Stage, number>
+  hired: number
+  openings: number
+  avg_days_to_hire: number | null
+  by_source: Record<Source, number>
+  refused_by_reason: Record<RefuseReason, number>
 }
+
+export type TalentPool = { id: number; name: string; description: string; created_at: string; member_count: number }
+export type TalentPoolInput = { name: string; description: string }
+export type PoolMember = { id: number; name: string; email: string; job_id: number; job_title: string; stage: Stage }
+
+// Days in a stage before a card counts as stuck; null = never. Filled from GET /stage-rules by loadStageRules().
+let stuckAfterDays: Partial<Record<Stage, number | null>> = {}
+export const loadStageRules = () =>
+  request<StageRules>('/stage-rules').then((r) => { stuckAfterDays = r.stuck_after_days })
 
 // Whole days since the applicant entered the current stage.
 export const daysInStage = (a: Pick<Applicant, 'stage_changed_at'>) =>
   Math.floor((Date.now() - Date.parse(a.stage_changed_at)) / 86_400_000)
 
 export function isStuck(a: Pick<Applicant, 'stage' | 'stage_changed_at'>) {
-  const limit = STUCK_AFTER_DAYS[a.stage]
-  return limit !== null && daysInStage(a) >= limit
+  const limit = stuckAfterDays[a.stage]
+  return limit != null && daysInStage(a) >= limit
 }
 
 export type RefuseReason = 'does_not_fit' | 'refused_job_fit' | 'refused_salary' | 'job_filled' | 'duplicate' | 'spam'
-
-export const REFUSE_REASON_LABEL: Record<RefuseReason, string> = {
-  does_not_fit: 'Does not fit the job requirements',
-  refused_job_fit: 'Refused by applicant: job fit',
-  refused_salary: 'Refused by applicant: salary',
-  job_filled: 'Job already filled',
-  duplicate: 'Duplicate',
-  spam: 'Spam',
-}
 
 // GET /refuse-reasons: the backend owns both the list and its labels.
 export type RefuseReasonOption = { value: RefuseReason; label: string }
 
 // Optional board filters for GET /applicants; empty values are left out of the query string.
-export type ApplicantFilters = { q?: string; priority_min?: number; tag?: string; archived?: boolean }
+export type ApplicantFilters = { q?: string; priority_min?: number; tag?: string; archived?: boolean; owner?: 'me' }
 
 // Fields the recruiter edits in the side panel (PATCH /applicants/{id}).
 export type ApplicantUpdate = Pick<Applicant,
   'notes' | 'priority' | 'tags' | 'linkedin' | 'available_from' | 'degree' | 'salary_expected' | 'salary_proposed'
-  | 'source' | 'source_detail' | 'next_action' | 'next_action_due'>
+  | 'source' | 'source_detail' | 'next_action' | 'next_action_due' | 'next_action_user_id' | 'user_id'>
 
 export type Interview = {
   id: number
@@ -153,7 +171,11 @@ export type ApplicantDetail = Applicant & {
   activity: { id: number; message: string; created_at: string }[]
   interviews: Interview[]
   other_applications: OtherApplication[]
+  attachments: Attachment[]
 }
+
+// Files other than the CV (PDF / DOCX / TXT / PNG / JPG, max 5 MB).
+export type Attachment = { id: number; applicant_id: number; filename: string; content_type: string; size: number; created_at: string }
 
 // Same person (email any case, or phone) applying to another job: Odoo's "application_count".
 export type OtherApplication = {
@@ -194,7 +216,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const detail = Array.isArray(body.detail) ? body.detail.map((d: { msg: string }) => d.msg).join(', ') : body.detail
     throw new Error(detail ?? `HTTP ${response.status}`)
   }
-  return response.json()
+  // 204 No Content (deletes, pool membership) has no body to parse.
+  return response.status === 204 ? (null as T) : response.json()
 }
 
 const json = (method: string, body: unknown): RequestInit => ({
@@ -221,6 +244,17 @@ export const api = {
   createJob: (job: JobInput) => request<Job>('/jobs', json('POST', job)),
   updateJob: (id: number, job: JobInput) => request<Job>(`/jobs/${id}`, json('PUT', job)),
   stages: () => request<Stage[]>('/stages'),
+  stageRules: () => request<StageRules>('/stage-rules'),
+  reportSummary: () => request<JobReport[]>('/reports/summary'),
+  talentPools: () => request<TalentPool[]>('/talent-pools'),
+  createTalentPool: (data: TalentPoolInput) => request<TalentPool>('/talent-pools', json('POST', data)),
+  deleteTalentPool: (id: number) => request<null>(`/talent-pools/${id}`, { method: 'DELETE' }),
+  poolMembers: (id: number) => request<PoolMember[]>(`/talent-pools/${id}/members`),
+  addPoolMember: (id: number, applicantId: number) =>
+    request<null>(`/talent-pools/${id}/members`, json('POST', { applicant_id: applicantId })),
+  removePoolMember: (id: number, applicantId: number) =>
+    request<null>(`/talent-pools/${id}/members/${applicantId}`, { method: 'DELETE' }),
+  applicantPools: (applicantId: number) => request<number[]>(`/applicants/${applicantId}/talent-pools`),
   applicants: (jobId: number, filters: ApplicantFilters = {}) => {
     const params = new URLSearchParams({ job_id: String(jobId) })
     for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') params.set(key, String(value))
@@ -246,15 +280,30 @@ export const api = {
   interviewFeedback: (id: number, data: FeedbackInput) =>
     request<Interview>(`/interviews/${id}/feedback`, json('POST', data)),
 
-  // The CV link needs the token too, so download through fetch instead of a plain <a href>.
-  downloadCv: async (id: number, filename: string) => {
-    const response = await fetch(`/api/applicants/${id}/cv`, { headers: { Authorization: `Bearer ${session.token()}` } })
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    const url = URL.createObjectURL(await response.blob())
-    const link = Object.assign(document.createElement('a'), { href: url, download: filename })
-    link.click()
-    URL.revokeObjectURL(url)
+  copyApplicant: (id: number, jobId: number) => request<Applicant>(`/applicants/${id}/copy`, json('POST', { job_id: jobId })),
+  uploadAttachment: (id: number, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<Attachment>(`/applicants/${id}/attachments`, { method: 'POST', body: form })
   },
+  deleteAttachment: async (id: number, attachmentId: number) => {
+    // 204 has no body, so this skips request()'s response.json().
+    const response = await fetch(`/api/applicants/${id}/attachments/${attachmentId}`,
+      { method: 'DELETE', headers: { Authorization: `Bearer ${session.token()}` } })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  },
+  downloadCv: (id: number, filename: string) => download(`/api/applicants/${id}/cv`, filename),
+  downloadAttachment: (a: Attachment) => download(`/api/applicants/${a.applicant_id}/attachments/${a.id}`, a.filename),
+}
+
+// File links need the token too, so download through fetch instead of a plain <a href>.
+async function download(path: string, filename: string) {
+  const response = await fetch(path, { headers: { Authorization: `Bearer ${session.token()}` } })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const url = URL.createObjectURL(await response.blob())
+  const link = Object.assign(document.createElement('a'), { href: url, download: filename })
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 export function formatWhen(iso: string) {

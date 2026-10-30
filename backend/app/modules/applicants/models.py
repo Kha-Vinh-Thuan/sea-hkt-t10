@@ -1,4 +1,4 @@
-"""Applicant and activity-log tables, plus the fixed pipeline stages."""
+"""Applicant, attachment and activity-log tables, plus the fixed pipeline stages."""
 
 from datetime import date, datetime
 from enum import StrEnum
@@ -22,6 +22,17 @@ class Stage(StrEnum):
 # ASSUMPTION: thresholds not in a product spec yet.
 STUCK_AFTER_DAYS: dict[Stage, int | None] = {
     Stage.new: 3, Stage.screening: 5, Stage.interview: 7, Stage.offer: 5, Stage.hired: None, Stage.rejected: None,
+}
+
+# Odoo stage `requirements`: what must be true before the card leaves the stage. Shown in the drawer, not enforced.
+# ASSUMPTION: texts not in a product spec yet.
+STAGE_REQUIREMENTS: dict[Stage, str] = {
+    Stage.new: "CV read; applicant matches the basic job requirements.",
+    Stage.screening: "Phone screen done; salary expectation and availability noted.",
+    Stage.interview: "All interviews done and every interviewer has left feedback.",
+    Stage.offer: "Offer sent and accepted in writing by the applicant.",
+    Stage.hired: "",
+    Stage.rejected: "",
 }
 
 class Source(StrEnum):
@@ -69,9 +80,24 @@ class Applicant(SQLModel, table=True):
     source_detail: str = ""  # free text, e.g. the referrer's name
     next_action: str = ""    # recruiter's next step (Odoo mail.activity, simplified)
     next_action_due: date | None = None
+    next_action_user_id: int | None = Field(default=None, foreign_key="app_user.id")  # who does the next step
+    user_id: int | None = Field(default=None, foreign_key="app_user.id", index=True)  # recruiter owner (Odoo user_id)
     stage_changed_at: datetime = utc_field(default_factory=utcnow)
+    hired_at: datetime | None = utc_field(default=None)  # Odoo date_closed: set entering `hired`, cleared leaving it
     created_at: datetime = utc_field(default_factory=utcnow)
 
+
+class ApplicantAttachment(SQLModel, table=True):
+    # Files other than the CV (Odoo attachment_ids): portfolio, certificates, ID scans.
+    __tablename__ = "applicant_attachment"
+
+    id: int | None = Field(default=None, primary_key=True)
+    applicant_id: int = Field(foreign_key="applicant.id", index=True)
+    filename: str           # original name, shown to recruiters
+    stored_path: str        # random name on disk, never derived from user input
+    content_type: str       # from the checked extension, not the client
+    size: int
+    created_at: datetime = utc_field(default_factory=utcnow)
 
 class Activity(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)

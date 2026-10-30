@@ -1,6 +1,6 @@
 """Login route (email + password for a bearer token) and who-am-I."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session
 
 from app.config.database import get_session
@@ -13,11 +13,14 @@ from app.modules.users.schemas import UserBrief
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/login")
-def login(data: LoginIn, session: Session = Depends(get_session)):
+def login(data: LoginIn, request: Request, session: Session = Depends(get_session)):
+    client = request.client.host if request.client else ""
     try:
-        result = service.login(session, data.email, data.password)
+        result = service.login(session, data.email, data.password, client)
     except service.AuthNotConfigured as e:
         raise HTTPException(503, str(e)) from e
+    except service.TooManyAttempts as e:
+        raise HTTPException(429, str(e)) from e
     if not result:
         raise HTTPException(401, "Wrong email or password")
     token, user = result

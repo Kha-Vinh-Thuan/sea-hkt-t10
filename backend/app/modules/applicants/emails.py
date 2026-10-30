@@ -1,4 +1,4 @@
-"""Candidate emails (interest after apply, congratulations on hire, refusal). Texts live here as constants.
+"""Candidate emails (interest after apply, congratulations on hire, refusal, not interested). Texts live here as constants.
 
 A mail failure never undoes the action that triggered it: it is logged on the applicant and reported back.
 """
@@ -25,6 +25,13 @@ REFUSE_BODY = (
     "Hello {name},\n\nThank you for your interest in {job} and for the time you spent applying.\n"
     "After careful consideration we have decided not to move forward with your application.\n"
     "We wish you all the best in your job search.\n"
+)
+# Odoo's "not interested" template: the applicant withdrew (job fit / salary), so no "we decided" wording.
+NOT_INTERESTED_SUBJECT = "Sorry to see you go: {job}"
+NOT_INTERESTED_BODY = (
+    "Hello {name},\n\nThank you for letting us know that you are no longer interested in {job}.\n"
+    "We are sorry to see you go, and we have closed your application.\n"
+    "You are welcome to apply again for this or any other position in the future.\n"
 )
 
 def send(session: Session, applicant: Applicant, label: str, subject: str, body: str) -> tuple[bool, str | None]:

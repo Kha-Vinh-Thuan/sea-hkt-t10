@@ -40,9 +40,9 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 | `employee_type_id` (full-time, intern...) | yes | done (#19) |
 | `salary_min`, `salary_max`, `payment_interval` | salary range, monthly VND | done (#19); payment interval dropped (always monthly) |
 | `expected_degree` | yes | done (#19, plain text) |
-| `recruiter_id`, `manager_id`, `interviewer_ids` | interviewers per job (`job_interviewer`) | done (#14); recruiter / manager per job: later |
-| `tag_ids` (job tags) | none | later |
-| `website_description`, `job_details` (rich public page) | plain text description | later: Markdown rendering |
+| `recruiter_id`, `manager_id`, `interviewer_ids` | interviewers per job (`job_interviewer`), recruiter + hiring manager per job | done (#14, #32) |
+| `tag_ids` (job tags) | tags list, shown on the careers site | done (#32) |
+| `website_description`, `job_details` (rich public page) | plain text, line breaks kept, bare URLs linked | done (#32); Markdown: dropped (no new dependency) |
 | `survey_id` (interview form per job) | yes | done (#21, own scorecard instead of a survey) |
 | `job_source_ids`, email alias per job | none | dropped: no inbound mail |
 | `industry_id`, `company_id`, multi-company, currency | none | dropped: one company |
@@ -53,7 +53,7 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 | Odoo | Here | Decision |
 |---|---|---|
 | partner_name, email_from, partner_phone | name, email, phone | done |
-| CV attachment | one CV file + extracted text | done; more attachments later |
+| CV attachment | one CV file + extracted text, extra attachments | done (#33) |
 | `stage_id`, `date_last_stage_update`, `last_stage_id` | `stage` + activity log + `stage_changed_at` | done (#20) |
 | chatter (messages, tracking) | auto activity log + recruiter notes | done (#20) |
 | `applicant_notes` | yes | done (#20) |
@@ -64,18 +64,18 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 | `salary_expected`, `salary_proposed` (+ extra) | two numbers, monthly VND (assumption, see section 4) | done (#20); "extra" text fields dropped |
 | `refuse_reason_id`, `refuse_date`, refuse email template | yes | done (#16) |
 | refuse wizard: reason list (does not fit, refused by applicant: job fit / salary, job filled, duplicate, spam), optional mail | yes | done (#16: same reason list, mail optional) |
-| mail templates: refuse, interest, congratulations (hired), not interested | yes | done (#16 refuse; #22 interest + congratulations); "not interested" template: later |
+| mail templates: refuse, interest, congratulations (hired), not interested | yes | done (#16 refuse; #22 interest + congratulations; #33 "not interested" when the applicant declined) |
 | `archive_applicant` / `reset_applicant` (restore to first stage) | archive / restore buttons; API `?archived=true` | done (#20); board "Show archived" view (#24) |
-| `action_job_add_applicants` (copy applicant to another job) | none | later |
-| scheduled activities (to-do with deadline and owner, `mail.activity`) | `next_action` + `next_action_due`, overdue chip | done (#27); owner per to-do: later |
-| attachments other than the CV (`attachment_ids`) | one CV | later |
+| `action_job_add_applicants` (copy applicant to another job) | copy to another job (`POST /applicants/{id}/copy`) | done (#33) |
+| scheduled activities (to-do with deadline and owner, `mail.activity`) | `next_action` + `next_action_due`, overdue chip | done (#27); owner per to-do (#33) |
+| attachments other than the CV (`attachment_ids`) | `applicant_attachment`: PDF/DOCX/TXT/PNG/JPG, 5 MB | done (#33) |
 | `application_status` (ongoing / hired / refused / archived), `active` | yes | done (#20: archive flag) |
 | `kanban_state` (blocked / ready), stage `rotting_threshold_days` | stuck-after-days per stage (`GET /api/stage-rules`), badge on cards + drawer | done (#27); blocked / ready flag dropped |
-| `recruiter_id`, `interviewer_ids` per applicant | interviewer per interview, picked from the job's list | done (#14); recruiter owner per applicant: later |
-| `date_closed` (hire date), days to open / close, delay | none | later: simple reporting |
+| `recruiter_id`, `interviewer_ids` per applicant | interviewer per interview, picked from the job's list | done (#14); recruiter owner per applicant + "Mine" board filter (#33) |
+| `date_closed` (hire date), days to open / close, delay | `hired_at`, average days to hire in Reports | done (#34) |
 | duplicates by email / phone (`application_count`) | "Also applied to" in the panel (same email any case, or same phone) | done (#27) |
-| `skill_ids`, matching / missing skills, `matching_score` | CV text only | later: the Filter agent produces the score |
-| talent pool (`talent_pool_ids`) | none | later |
+| `skill_ids`, matching / missing skills, `matching_score` | CV text only | #18: the Filter agent produces the score |
+| talent pool (`talent_pool_ids`) | pools picker in the drawer | done (#35) |
 | source / medium / campaign (UTM) | `source` (careers site, LinkedIn, referral, job board, other) + detail; `?source=` on careers links | done (#27); medium / campaign dropped |
 | `employee_id` (create employee on hire) | none | dropped: we stop at hired, no HR core |
 | SMS (`hr_recruitment_sms`) | none | dropped: email only |
@@ -87,7 +87,7 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 |---|---|---|
 | configurable stages, `fold`, `hired_stage`, per-job stages | fixed enum in code | dropped for MVP: no admin screen |
 | default stages: New, Qualification, First Interview, Second Interview, Contract Proposal, Contract Signed | new, screening, interview, offer, hired, rejected | done; several interview rounds = several interviews in one `interview` stage |
-| stage `requirements` text, email template on stage enter | none | later (rejection mail is #16) |
+| stage `requirements` text, email template on stage enter | requirements text per stage shown in the drawer; email on enter: dropped (interest / refuse / hired mails cover it) | done (#34) |
 
 ### Interviews (`calendar.event` + `hr_recruitment_survey`)
 
@@ -106,7 +106,7 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 |---|---|---|
 | users, groups (officer / manager / interviewer) | users table, roles admin / recruiter / interviewer, Users page | done (#13) |
 | inbound mail gateway (CV to an alias) | public apply form | dropped: needs a real mailbox and domain |
-| reporting, digest emails | none | later |
+| reporting, digest emails | Reports tab: by stage, hired vs target, days to hire, source, refuse reason | done (#34); digest emails: dropped |
 | multi-language website, i18n | English UI | dropped |
 | careers list filters: country, department, office, remote, employment type | yes | done (#23: filter by department, location, remote, type) |
 | job page: department, location, remote flag, employment type, publish toggle | yes | done (#19 adds remote + type; #23 shows them) |
@@ -114,9 +114,33 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 | `/jobs/add` (create job from the website) | recruiter board "New job" | done |
 | job platforms (parse LinkedIn / Indeed / JobsDB mails) | none | dropped: needs inbound mail |
 | CV OCR to fill applications (`hr_recruitment_extract`, paid) | text extraction only | dropped: Filter agent reads the CV text |
-| talent pool (`hr.talent.pool`: name, manager, talents, tags) | none | later |
-| department dashboard (new applicants, expected hires) | none | later: reporting |
+| talent pool (`hr.talent.pool`: name, manager, talents, tags) | pools with members, Talent pools tab; pool manager / tags: dropped | done (#35) |
+| department dashboard (new applicants, expected hires) | Reports tab per job | done (#34) |
 | digest emails, guided tour, demo scenario | seed data | dropped |
+
+### Other Odoo HR modules (not recruitment)
+
+Checked by name and purpose; none feeds the hiring flow, which ends at `hired` (no employee record). Each one is
+a product of its own (employee master data, payroll-adjacent rules), so building them would multiply the scope.
+Revisit only if the product grows from "hiring" into "HR core"; `hr` (employee) would come first, the rest depend on it.
+
+| Odoo module | What it is | Decision |
+|---|---|---|
+| `hr` (employees, departments, contracts) | employee master data | dropped: users + department text cover hiring; employee record = HR core |
+| `hr_address_extended` | structured employee addresses | dropped: no employees |
+| `hr_attendance`, `hr_presence`, `hr_holidays_attendance` | check-in / out, presence, overtime as leave | dropped: HR core |
+| `hr_holidays` | leave requests and allocations | dropped: HR core |
+| `hr_calendar` | working schedules in the calendar | dropped: interview slots only check interviewer clashes |
+| `hr_calendar_google` | Google Calendar link for employees | #17 (interviewer free/busy only) |
+| `hr_expense` | expense claims | dropped: finance |
+| `hr_fleet` | company cars | dropped |
+| `hr_gamification` | badges, challenges | dropped |
+| `hr_livechat` | livechat operator stats | dropped: no livechat |
+| `hr_maintenance` | equipment per employee | dropped |
+| `hr_skills`, `hr_skills_event`, `hr_skills_slides`, `hr_skills_survey` | employee skills, certifications from courses | dropped; applicant skills: Filter agent (see Applicant `skill_ids`) |
+| `hr_timesheet`, `hr_timesheet_attendance` | time tracking on projects | dropped: HR core |
+| `hr_work_entry` | work entries for payroll | dropped: payroll |
+| `hr_recruitment_sms` | SMS to applicants | dropped: email only |
 
 ## 3. Progress
 
@@ -149,17 +173,29 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 | 25 | Refuse dialog reads reasons from `GET /api/refuse-reasons` instead of its own label list | done |
 | 26 | Recruiter screens clicked through in a browser: login, board, drag-and-drop (incl. drop on Rejected → Refuse dialog), drawer, Users page, interviewer view | done |
 | 27 | Applicant extras: source, "also applied to", stuck-in-stage badge, next step + due date | done |
-| 28 | Edit job / reschedule / feedback dialogs clicked through in a browser (checked through the API so far) | todo |
-| 29 | Frontend reads stuck thresholds from `GET /api/stage-rules` instead of its own copy in `api.ts` | todo |
-| 30 | Drawer shows refuse labels from the API (`REFUSE_REASON_LABEL` still duplicated in `api.ts`) | todo |
-| 31 | Login rate limit (now that there are several accounts) | todo |
+| 28 | Edit job / reschedule / feedback dialogs clicked through in a browser | done |
+| 29 | Frontend reads stuck thresholds from `GET /api/stage-rules` instead of its own copy in `api.ts` | done |
+| 30 | Drawer and Reports show refuse labels from the API (`REFUSE_REASON_LABEL` removed) | done |
+| 31 | Login rate limit: 5 failures per client + email in 15 min, then 429 (in memory) | done |
+| 32 | Job: recruiter + hiring manager, tags, linked URLs on the careers page | done |
+| 33 | Applicant: copy to job, attachments, owner + "Mine" filter, to-do owner, "not interested" mail | done |
+| 34 | Hire date, Reports tab, stage requirements in the drawer | done |
+| 35 | Talent pools (tab + drawer picker) | done |
 
 #10, #11, #16, #19–#23 were built in parallel by three agents (jobs / applicants / interviews), then merged with one
 migration (`0002`). #13–#15, #24–#27 the same way (users / board / applicant extras), migration `0003`.
 Review fixes: shared SMTP code merged into `send_mail`, hired count as a query, merge conflicts in `api.ts` and the
 applicants repository, duplicate Sign out button removed.
 
-Next: #28–#31 (small), then the "later" rows of section 2, then #17 / #18.
+#32–#35 the same way (jobs / applicants / reports + pools), migration `0004`.
+
+Next: #17 (Google Calendar), #18 (agent hook, after the specs). Section 2 has no "later" rows left except calendar
+replies (Accept / Decline, reminders) below.
+
+Verified 2026-10-30 (#28–#35): 53 backend tests pass; frontend build and lint clean; migration 0004 up / down / up
+on Postgres. Browser: book, reschedule, feedback (saved: done, 4, hire), edit job target. Live API: job owners +
+tags (public tags), copy to job (409 on repeat), attachment upload / download / cross-applicant 404 / .exe 422 /
+delete, owner filter, talent pool add / delete, hire date, Reports, "Sorry to see you go" mail.
 
 Verified 2026-10-30: 40 backend tests pass; frontend build and lint clean; migrations 0002 and 0003 upgraded /
 downgraded / upgraded on Postgres with existing rows. Live on Postgres + Mailpit: apply → interest mail → book →
@@ -170,9 +206,8 @@ Users page, interviewer view.
 
 ## 4. Known limits (accepted for the demo)
 
-- No login rate limit yet (#31). Do not expose beyond localhost.
 - Token is stored in `localStorage`. Move to an httpOnly cookie before going public.
-- No rate limit on login or apply.
+- Login rate limit is per process memory (resets on restart). No rate limit on apply.
 - Upload folder is local disk (`backend/uploads/`, gitignored). Use object storage if deployed.
 - Times are stored in UTC; display uses the browser's timezone, emails use `TIMEZONE` from `.env`.
 

@@ -1,13 +1,16 @@
 """Login against the users table, signed bearer token (stdlib HMAC, no extra dependency).
 
 The token carries user id + role; every request reloads the user, so deactivation or a role change applies at once.
-ponytail: no login rate limit; add one before the app leaves localhost.
+Failed logins are rate limited per client + email, in memory.
+ponytail: per-process memory, reset on restart and not shared between workers; move to Redis/DB for multi-worker.
 """
 
 import base64
 import hashlib
 import hmac
+import threading
 import time
+from collections import defaultdict
 
 from sqlmodel import Session
 
@@ -16,8 +19,15 @@ from app.modules.users import service as users
 from app.modules.users.models import User
 
 TOKEN_TTL_SECONDS = 12 * 3600
+MAX_FAILED_LOGINS = 5
+FAILED_LOGIN_WINDOW_SECONDS = 15 * 60
+_failed_logins: dict[str, list[float]] = defaultdict(list)
+_failed_lock = threading.Lock()
 
 class AuthNotConfigured(Exception):
+    pass
+
+class TooManyAttempts(Exception):
     pass
 
 def _sign(payload: str) -> str:
@@ -48,12 +58,27 @@ def current_user(session: Session, token: str) -> User | None:
     user_id = verify_token(token)
     return users.get_active(session, user_id) if user_id is not None else None
 
-def login(session: Session, email: str, password: str) -> tuple[str, User] | None:
-    """(token, user) if the credentials match an active user, else None."""
+def login(session: Session, email: str, password: str, client: str = "") -> tuple[str, User] | None:
+    """(token, user) if the credentials match an active user, else None.
+
+    Keyed by client + email so one attacker cannot lock a real user out from elsewhere.
+    """
     if not settings.secret_key():
         raise AuthNotConfigured("SECRET_KEY is not set")
+    key = f"{client}|{email.strip().lower()}"
+    now = time.time()
+    with _failed_lock:
+        recent = [t for t in _failed_logins[key] if now - t < FAILED_LOGIN_WINDOW_SECONDS]
+        _failed_logins[key] = recent
+        if len(recent) >= MAX_FAILED_LOGINS:
+            raise TooManyAttempts("Too many failed logins, try again in a few minutes")
     try:
         user = users.authenticate(session, email, password)
     except users.NotConfigured as e:
         raise AuthNotConfigured(str(e)) from e
+    with _failed_lock:
+        if user:
+            _failed_logins.pop(key, None)
+        else:
+            _failed_logins[key].append(now)
     return (make_token(user), user) if user else None

@@ -20,6 +20,7 @@ def import_models() -> None:
     from app.modules.applicants import models as _applicants  # noqa: F401
     from app.modules.interviews import models as _interviews  # noqa: F401
     from app.modules.jobs import models as _jobs  # noqa: F401
+    from app.modules.talent_pools import models as _talent_pools  # noqa: F401
     from app.modules.users import models as _users  # noqa: F401
 
 def migrate() -> None:

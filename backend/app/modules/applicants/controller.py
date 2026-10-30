@@ -1,4 +1,6 @@
-"""Applicant routes: public apply form and the recruiter board (edit, refuse, archive / restore)."""
+"""Applicant routes: public apply form and the recruiter board (edit, copy, refuse, archive / restore, attachments)."""
+
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
@@ -7,9 +9,10 @@ from sqlmodel import Session
 
 from app.config.database import get_session
 from app.modules.applicants import service
-from app.modules.applicants.models import STUCK_AFTER_DAYS, RefuseReason, Source, Stage
-from app.modules.applicants.schemas import ApplicantUpdate, RefuseIn, StageIn
+from app.modules.applicants.models import STAGE_REQUIREMENTS, STUCK_AFTER_DAYS, RefuseReason, Source, Stage
+from app.modules.applicants.schemas import ApplicantUpdate, CopyIn, RefuseIn, StageIn
 from app.modules.auth.dependencies import require_recruiter
+from app.modules.users.models import User
 
 public_router = APIRouter(prefix="/api/public/jobs", tags=["careers"])
 router = APIRouter(prefix="/api", tags=["applicants"], dependencies=[Depends(require_recruiter)])
@@ -53,7 +56,8 @@ def list_stages():
 @router.get("/stage-rules")
 def stage_rules():
     # Separate from /stages so that endpoint stays a plain list for existing callers. None = never stuck.
-    return {"stuck_after_days": {stage.value: days for stage, days in STUCK_AFTER_DAYS.items()}}
+    return {"stuck_after_days": {stage.value: days for stage, days in STUCK_AFTER_DAYS.items()},
+            "requirements": {stage.value: text for stage, text in STAGE_REQUIREMENTS.items()}}
 
 
 @router.get("/refuse-reasons")
@@ -64,8 +68,10 @@ def list_refuse_reasons():
 @router.get("/applicants")
 def list_applicants(job_id: int | None = None, archived: bool = False, q: str = Query("", max_length=200),
                     priority_min: int | None = Query(None, ge=0, le=3), tag: str = Query("", max_length=100),
+                    owner: Literal["me"] | None = None, user: User = Depends(require_recruiter),
                     session: Session = Depends(get_session)):
-    return service.list_for_board(session, job_id, archived, q, priority_min, tag)
+    return service.list_for_board(session, job_id, archived, q, priority_min, tag,
+                                  owner_id=user.id if owner == "me" else None)
 
 
 @router.get("/applicants/{applicant_id}")
@@ -103,3 +109,21 @@ def restore(applicant_id: int, session: Session = Depends(get_session)):
 def download_cv(applicant_id: int, session: Session = Depends(get_session)):
     path, filename = service.cv_file(session, applicant_id)
     return FileResponse(path, filename=filename)
+
+@router.post("/applicants/{applicant_id}/copy", status_code=201)
+def copy_to_job(applicant_id: int, data: CopyIn, session: Session = Depends(get_session)):
+    return service.copy_to_job(session, applicant_id, data.job_id).model_dump(exclude=CARD_EXCLUDE)
+
+@router.post("/applicants/{applicant_id}/attachments", status_code=201)
+async def add_attachment(applicant_id: int, file: UploadFile = File(), session: Session = Depends(get_session)):
+    attachment = service.add_attachment(session, applicant_id, file.filename or "", await file.read())
+    return attachment.model_dump(exclude={"stored_path"})
+
+@router.get("/applicants/{applicant_id}/attachments/{attachment_id}")
+def download_attachment(applicant_id: int, attachment_id: int, session: Session = Depends(get_session)):
+    path, filename, content_type = service.attachment_file(session, applicant_id, attachment_id)
+    return FileResponse(path, filename=filename, media_type=content_type)
+
+@router.delete("/applicants/{applicant_id}/attachments/{attachment_id}", status_code=204)
+def delete_attachment(applicant_id: int, attachment_id: int, session: Session = Depends(get_session)):
+    service.delete_attachment(session, applicant_id, attachment_id)
