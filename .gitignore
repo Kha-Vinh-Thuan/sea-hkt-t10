@@ -19,3 +19,9 @@ Thumbs.db
 # Runtime data
 *.log
 *.pid
+
+# Backend / frontend build output
+.venv/
+node_modules/
+dist/
+backend/uploads/

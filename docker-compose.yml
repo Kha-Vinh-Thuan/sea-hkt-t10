@@ -2,50 +2,14 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: postgres
+      POSTGRES_DB: hr
       POSTGRES_USER: odoo
       POSTGRES_PASSWORD: odoo
-    volumes:
-      - db-data:/var/lib/postgresql/data
-
-  odoo:
-    image: odoo:latest
-    depends_on: [db]
-    command: ["--dev=reload,xml,qweb"]
     ports:
-      - "8069:8069"
-    environment:
-      HOST: db
-      USER: odoo
-      PASSWORD: odoo
+      - "5432:5432"
     volumes:
-      - odoo-data:/var/lib/odoo
-      # ponytail: core hr* modules forked; mounted over core path (core shadows /mnt/extra-addons)
-      - ./addons/hr:/usr/lib/python3/dist-packages/odoo/addons/hr
-      - ./addons/hr_address_extended:/usr/lib/python3/dist-packages/odoo/addons/hr_address_extended
-      - ./addons/hr_attendance:/usr/lib/python3/dist-packages/odoo/addons/hr_attendance
-      - ./addons/hr_calendar:/usr/lib/python3/dist-packages/odoo/addons/hr_calendar
-      - ./addons/hr_calendar_google:/usr/lib/python3/dist-packages/odoo/addons/hr_calendar_google
-      - ./addons/hr_expense:/usr/lib/python3/dist-packages/odoo/addons/hr_expense
-      - ./addons/hr_fleet:/usr/lib/python3/dist-packages/odoo/addons/hr_fleet
-      - ./addons/hr_gamification:/usr/lib/python3/dist-packages/odoo/addons/hr_gamification
-      - ./addons/hr_holidays:/usr/lib/python3/dist-packages/odoo/addons/hr_holidays
-      - ./addons/hr_holidays_attendance:/usr/lib/python3/dist-packages/odoo/addons/hr_holidays_attendance
-      - ./addons/hr_livechat:/usr/lib/python3/dist-packages/odoo/addons/hr_livechat
-      - ./addons/hr_maintenance:/usr/lib/python3/dist-packages/odoo/addons/hr_maintenance
-      - ./addons/hr_presence:/usr/lib/python3/dist-packages/odoo/addons/hr_presence
-      - ./addons/hr_recruitment:/usr/lib/python3/dist-packages/odoo/addons/hr_recruitment
-      - ./addons/hr_recruitment_skills:/usr/lib/python3/dist-packages/odoo/addons/hr_recruitment_skills
-      - ./addons/hr_recruitment_sms:/usr/lib/python3/dist-packages/odoo/addons/hr_recruitment_sms
-      - ./addons/hr_recruitment_survey:/usr/lib/python3/dist-packages/odoo/addons/hr_recruitment_survey
-      - ./addons/hr_skills:/usr/lib/python3/dist-packages/odoo/addons/hr_skills
-      - ./addons/hr_skills_event:/usr/lib/python3/dist-packages/odoo/addons/hr_skills_event
-      - ./addons/hr_skills_slides:/usr/lib/python3/dist-packages/odoo/addons/hr_skills_slides
-      - ./addons/hr_skills_survey:/usr/lib/python3/dist-packages/odoo/addons/hr_skills_survey
-      - ./addons/hr_timesheet:/usr/lib/python3/dist-packages/odoo/addons/hr_timesheet
-      - ./addons/hr_timesheet_attendance:/usr/lib/python3/dist-packages/odoo/addons/hr_timesheet_attendance
-      - ./addons/hr_work_entry:/usr/lib/python3/dist-packages/odoo/addons/hr_work_entry
+      # Same volume as the old Odoo setup: its database db-hr-sys stays here for reference.
+      - db-data:/var/lib/postgresql/data
 
 volumes:
   db-data:
-  odoo-data:
