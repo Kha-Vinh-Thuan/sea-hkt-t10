@@ -6,6 +6,12 @@ export const STAGE_LABEL: Record<Stage, string> = {
   new: 'New', screening: 'Screening', interview: 'Interview', offer: 'Offer', hired: 'Hired', rejected: 'Rejected',
 }
 
+export type EmploymentType = 'full_time' | 'part_time' | 'internship' | 'contract'
+
+export const EMPLOYMENT_LABEL: Record<EmploymentType, string> = {
+  full_time: 'Full-time', part_time: 'Part-time', internship: 'Internship', contract: 'Contract',
+}
+
 export type PublicJob = {
   id: number
   title: string
@@ -13,6 +19,13 @@ export type PublicJob = {
   location: string
   description: string
   requirements: string
+  employment_type: EmploymentType
+  is_remote: boolean
+  salary_min: number | null // monthly, VND
+  salary_max: number | null
+  expected_degree: string
+  opens_on: string | null // YYYY-MM-DD
+  closes_on: string | null
 }
 
 export type Job = PublicJob & {
@@ -20,9 +33,10 @@ export type Job = PublicJob & {
   openings: number
   is_open: boolean
   applicant_count: number
+  hired_count: number
 }
 
-export type JobInput = Omit<Job, 'id' | 'applicant_count'>
+export type JobInput = Omit<Job, 'id' | 'applicant_count' | 'hired_count'>
 
 export type Applicant = {
   id: number
@@ -33,7 +47,35 @@ export type Applicant = {
   stage: Stage
   cv_filename: string
   created_at: string
+  linkedin: string
+  short_intro: string
+  notes: string
+  priority: number
+  tags: string[]
+  available_from: string | null
+  degree: string
+  salary_expected: number | null
+  salary_proposed: number | null
+  archived: boolean
+  refuse_reason: RefuseReason | null
+  refused_at: string | null
+  stage_changed_at: string
 }
+
+export type RefuseReason = 'does_not_fit' | 'refused_job_fit' | 'refused_salary' | 'job_filled' | 'duplicate' | 'spam'
+
+export const REFUSE_REASON_LABEL: Record<RefuseReason, string> = {
+  does_not_fit: 'Does not fit the job requirements',
+  refused_job_fit: 'Refused by applicant: job fit',
+  refused_salary: 'Refused by applicant: salary',
+  job_filled: 'Job already filled',
+  duplicate: 'Duplicate',
+  spam: 'Spam',
+}
+
+// Fields the recruiter edits in the side panel (PATCH /applicants/{id}).
+export type ApplicantUpdate = Pick<Applicant,
+  'notes' | 'priority' | 'tags' | 'linkedin' | 'available_from' | 'degree' | 'salary_expected' | 'salary_proposed'>
 
 export type Interview = {
   id: number
@@ -43,7 +85,26 @@ export type Interview = {
   start: string
   end: string
   location: string
+  status: InterviewStatus
+  sequence: number
+  score: number | null
+  recommendation: Recommendation | null
+  feedback: string
 }
+
+export type InterviewStatus = 'scheduled' | 'done' | 'no_show' | 'cancelled'
+export type Recommendation = 'hire' | 'maybe' | 'no_hire'
+export const INTERVIEW_STATUS_LABEL: Record<InterviewStatus, string> = {
+  scheduled: 'Scheduled', done: 'Done', no_show: 'No-show', cancelled: 'Cancelled',
+}
+export const INTERVIEW_STATUS_COLOR: Record<InterviewStatus, 'primary' | 'success' | 'warning' | 'default'> = {
+  scheduled: 'primary', done: 'success', no_show: 'warning', cancelled: 'default',
+}
+export const RECOMMENDATION_LABEL: Record<Recommendation, string> = { hire: 'Hire', maybe: 'Maybe', no_hire: 'No hire' }
+export type FeedbackInput = {
+  status: 'done' | 'no_show'; score: number | null; recommendation: Recommendation | null; feedback: string
+}
+export type InterviewResult = { interview: Interview; emailed: boolean; mail_error: string | null }
 
 export type UpcomingInterview = Interview & { applicant_name: string; job_title: string }
 
@@ -100,14 +161,27 @@ export const api = {
 
   jobs: () => request<Job[]>('/jobs'),
   createJob: (job: JobInput) => request<Job>('/jobs', json('POST', job)),
+  updateJob: (id: number, job: JobInput) => request<Job>(`/jobs/${id}`, json('PUT', job)),
   stages: () => request<Stage[]>('/stages'),
   applicants: (jobId: number) => request<Applicant[]>(`/applicants?job_id=${jobId}`),
   applicant: (id: number) => request<ApplicantDetail>(`/applicants/${id}`),
   moveStage: (id: number, stage: Stage) => request<Applicant>(`/applicants/${id}/stage`, json('PATCH', { stage })),
+  updateApplicant: (id: number, data: Partial<ApplicantUpdate>) =>
+    request<Applicant>(`/applicants/${id}`, json('PATCH', data)),
+  refuse: (id: number, reason: RefuseReason, sendEmail: boolean) =>
+    request<{ applicant: Applicant; emailed: boolean; mail_error: string | null }>(
+      `/applicants/${id}/refuse`, json('POST', { reason, send_email: sendEmail })),
+  archive: (id: number) => request<Applicant>(`/applicants/${id}/archive`, { method: 'POST' }),
+  restore: (id: number) => request<Applicant>(`/applicants/${id}/restore`, { method: 'POST' }),
   scheduleInterview: (id: number, data: InterviewInput) =>
     request<{ interview: Interview; emailed: boolean; mail_error: string | null }>(
       `/applicants/${id}/interviews`, json('POST', data)),
   interviews: () => request<UpcomingInterview[]>('/interviews'),
+  rescheduleInterview: (id: number, data: InterviewInput) =>
+    request<InterviewResult>(`/interviews/${id}`, json('PUT', data)),
+  cancelInterview: (id: number) => request<InterviewResult>(`/interviews/${id}/cancel`, { method: 'POST' }),
+  interviewFeedback: (id: number, data: FeedbackInput) =>
+    request<Interview>(`/interviews/${id}/feedback`, json('POST', data)),
 
   // The CV link needs the token too, so download through fetch instead of a plain <a href>.
   downloadCv: async (id: number, filename: string) => {

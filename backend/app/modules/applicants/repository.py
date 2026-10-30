@@ -4,7 +4,7 @@ from collections import Counter
 
 from sqlmodel import Session, select
 
-from app.modules.applicants.models import Activity, Applicant
+from app.modules.applicants.models import Activity, Applicant, Stage
 
 
 def get(session: Session, applicant_id: int) -> Applicant | None:
@@ -15,15 +15,18 @@ def find_by_job_and_email(session: Session, job_id: int, email: str) -> Applican
     return session.exec(select(Applicant).where(Applicant.job_id == job_id, Applicant.email == email)).first()
 
 
-def list_by_job(session: Session, job_id: int | None) -> list[Applicant]:
-    query = select(Applicant).order_by(Applicant.created_at.desc())
+def list_by_job(session: Session, job_id: int | None, archived: bool = False) -> list[Applicant]:
+    query = select(Applicant).where(Applicant.archived == archived).order_by(Applicant.created_at.desc())
     if job_id is not None:
         query = query.where(Applicant.job_id == job_id)
     return list(session.exec(query).all())
 
 
-def count_by_job(session: Session) -> dict[int, int]:
-    return dict(Counter(session.exec(select(Applicant.job_id)).all()))
+def count_by_job(session: Session, stage: Stage | None = None) -> dict[int, int]:
+    query = select(Applicant.job_id)
+    if stage is not None:
+        query = query.where(Applicant.stage == stage)
+    return dict(Counter(session.exec(query).all()))
 
 
 def add(session: Session, applicant: Applicant) -> Applicant:

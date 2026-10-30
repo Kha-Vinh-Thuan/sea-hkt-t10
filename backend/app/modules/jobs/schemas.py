@@ -1,6 +1,10 @@
 """Job request/response shapes."""
 
+from datetime import date
+
 from pydantic import BaseModel, Field
+
+from app.modules.jobs.models import EmploymentType
 
 
 class PublicJob(BaseModel):
@@ -11,6 +15,13 @@ class PublicJob(BaseModel):
     location: str
     description: str
     requirements: str
+    employment_type: EmploymentType
+    is_remote: bool
+    salary_min: int | None
+    salary_max: int | None
+    expected_degree: str
+    opens_on: date | None
+    closes_on: date | None
 
 
 class JobIn(BaseModel):
@@ -22,3 +33,10 @@ class JobIn(BaseModel):
     interview_duration_minutes: int = Field(45, gt=0, le=480)
     openings: int = Field(1, ge=0)
     is_open: bool = True
+    opens_on: date | None = None
+    closes_on: date | None = None
+    employment_type: EmploymentType = EmploymentType.full_time
+    is_remote: bool = False
+    salary_min: int | None = Field(None, ge=0)
+    salary_max: int | None = Field(None, ge=0)
+    expected_degree: str = Field("", max_length=200)

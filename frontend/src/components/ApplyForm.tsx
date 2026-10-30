@@ -1,4 +1,4 @@
-// Apply form for one job: name, email, phone, CV file. The server re-validates everything.
+// Apply form for one job: name, email, phone, LinkedIn, short introduction, CV file. The server re-validates everything.
 import { useState, type FormEvent } from 'react'
 import { Alert, Button, Stack, TextField, Typography } from '@mui/material'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
@@ -37,6 +37,9 @@ export default function ApplyForm({ jobId }: { jobId: number }) {
       <TextField name="name" label="Full name" required fullWidth autoComplete="name" />
       <TextField name="email" label="Email" type="email" required fullWidth autoComplete="email" />
       <TextField name="phone" label="Phone" fullWidth autoComplete="tel" />
+      <TextField name="linkedin" label="LinkedIn profile" type="url" fullWidth placeholder="https://www.linkedin.com/in/…" />
+      <TextField name="short_intro" label="Short introduction" fullWidth multiline minRows={3}
+        slotProps={{ htmlInput: { maxLength: 2000 } }} />
       <Button component="label" variant="outlined" startIcon={<UploadFileIcon />}>
         {file ? 'Change CV' : 'Upload CV'}
         <input hidden type="file" accept=".pdf,.docx,.txt" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />

@@ -11,13 +11,17 @@ React + Vite + MUI (5173) --/api--> FastAPI (8000) --> Postgres "hr" (5432)
 
 | Page | Who | What |
 |---|---|---|
-| `/careers`, `/careers/:id` | Public | Open jobs, apply form (CV: PDF/DOCX/TXT, max 5 MB, text extracted) |
-| `/` | Recruiter (login) | Pipeline by stage, applicant panel (CV, stage, activity), create jobs |
-| `/` → Interviews | Recruiter | Upcoming interviews |
+| `/careers`, `/careers/:id` | Public | Jobs inside their open/close dates, filters (department, location, type, remote), apply form (CV PDF/DOCX/TXT max 5 MB, LinkedIn, short intro) |
+| `/` | Recruiter (login) | Pipeline by stage; create / edit jobs (dates, type, salary, hired / target); applicant panel: CV, stars, tags, notes, salaries, refuse with reason, archive / restore, interviews, activity |
+| `/` → Interviews | Recruiter | Upcoming interviews with status |
 
-Scheduling an interview: length comes from the job, past times and interviewer double-booking are
-rejected, early-stage applicants move to `interview`, and both candidate and interviewer get an email
-with an `.ics` invite (adds to Gmail/Outlook calendar). A mail failure keeps the booking and is shown.
+Interviews: length comes from the job, past times and interviewer double-booking are rejected, early-stage
+applicants move to `interview`, candidate and interviewer get an `.ics` invite. Reschedule and cancel send an
+update / cancel with the same UID, so Gmail/Outlook replace the event. After the interview: status done / no-show,
+score 1–5, recommendation, notes.
+
+Candidate emails: received (after apply), refusal (optional, with reason), congratulations (hired).
+A mail failure never undoes the action; it is shown and written to the activity log.
 
 ## Project layout
 

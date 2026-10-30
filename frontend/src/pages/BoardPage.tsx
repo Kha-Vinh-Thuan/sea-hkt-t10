@@ -5,6 +5,7 @@ import {
   ListItemButton, ListItemText, Paper, Stack, Tab, Tabs, Toolbar, Tooltip, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import LogoutIcon from '@mui/icons-material/Logout'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline'
@@ -24,7 +25,7 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
   const [applicants, setApplicants] = useState<Applicant[] | null>(null)
   const [jobId, setJobId] = useState<number>()
   const [openId, setOpenId] = useState<number>()
-  const [creating, setCreating] = useState(false)
+  const [dialog, setDialog] = useState<'new' | Job | null>(null)
   const [error, setError] = useState('')
 
   // An expired or invalid token sends the recruiter back to the login page instead of showing an error.
@@ -44,6 +45,8 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
     loadApplicants(jobId).catch(fail)
   }, [jobId, loadApplicants, fail])
 
+  const selectedJob = jobs.find((j) => j.id === jobId)
+
   function refresh() {
     if (jobId !== undefined) loadApplicants(jobId).catch(fail)
     loadJobs().catch(fail)
@@ -60,7 +63,7 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
             <Tab value="interviews" label="Interviews" />
           </Tabs>
           <Button href="/careers" target="_blank" endIcon={<OpenInNewIcon />}>Careers site</Button>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>New job</Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialog('new')}>New job</Button>
           <Tooltip title="Sign out">
             <IconButton onClick={onSignedOut} aria-label="Sign out"><LogoutIcon /></IconButton>
           </Tooltip>
@@ -80,7 +83,8 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
             <List dense>
               {jobs.map((job) => (
                 <ListItemButton key={job.id} selected={job.id === jobId} onClick={() => setJobId(job.id)}>
-                  <ListItemText primary={job.title} secondary={job.is_open ? job.department : 'Closed'} />
+                  <ListItemText primary={job.title}
+                    secondary={`${job.is_open ? job.department || 'Open' : 'Closed'} · ${job.hired_count} / ${job.openings} hired`} />
                   <Chip size="small" label={job.applicant_count} />
                 </ListItemButton>
               ))}
@@ -88,6 +92,14 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
           </Paper>
 
           <Box sx={{ flex: 1, p: 2, overflowX: 'auto' }}>
+            {selectedJob && (
+              <Stack direction="row" spacing={1.5} sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Typography variant="h6" fontWeight={700}>{selectedJob.title}</Typography>
+                <Chip size="small" color={selectedJob.hired_count >= selectedJob.openings ? 'success' : 'default'}
+                  label={`${selectedJob.hired_count} / ${selectedJob.openings} hired`} />
+                <Button size="small" startIcon={<EditOutlinedIcon />} onClick={() => setDialog(selectedJob)}>Edit job</Button>
+              </Stack>
+            )}
             {applicants === null ? (
               jobs.length || error ? <CircularProgress sx={{ m: 4 }} /> : null
             ) : (
@@ -126,9 +138,11 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
 
       <ApplicantDrawer applicantId={openId} stages={stages} onClose={() => setOpenId(undefined)} onChanged={refresh} />
       <JobDialog
-        open={creating}
-        onClose={() => setCreating(false)}
-        onCreated={(job) => { setCreating(false); setTab('pipeline'); loadJobs().then(() => setJobId(job.id)) }}
+        key={dialog === 'new' ? 'new' : dialog?.id}
+        open={dialog !== null}
+        job={dialog === 'new' || dialog === null ? undefined : dialog}
+        onClose={() => setDialog(null)}
+        onSaved={(job) => { setDialog(null); setTab('pipeline'); loadJobs().then(() => setJobId(job.id)).catch(fail) }}
       />
     </Box>
   )

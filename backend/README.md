@@ -20,9 +20,10 @@ app/
       repository.py          queries on the job table
       models.py              Job table
       schemas.py             request/response shapes
-    applicants/            apply form, board, stage moves, activity log
+    applicants/            apply form, board, stage moves, refuse / archive, recruiter fields, activity log
       controller.py  service.py  repository.py  models.py  schemas.py
-    interviews/            booking + invitation email
+      emails.py              candidate email texts (received, refusal, congratulations)
+    interviews/            book / reschedule / cancel (.ics with stable UID), feedback scorecard
       controller.py  service.py  repository.py  models.py  schemas.py
     auth/                  recruiter login
       controller.py          POST /api/auth/login
@@ -31,14 +32,17 @@ app/
       schemas.py
   integrations/            outside systems, called by services
     cv.py                    save CV file, extract text (PDF/DOCX/TXT)
-    mail.py                  SMTP + .ics invitation
+    mail.py                  SMTP send_mail (optional .ics attachment), build_ics
   utils/                   small shared helpers
     errors.py                NotFound / Conflict / Invalid (services raise, main.py maps)
     time.py                  UTC helpers
   seed.py                  demo jobs
 migrations/                Alembic revisions (versions/0001_initial_schema.py, ...)
 tests/
-  test_api.py              through HTTP
+  conftest.py              stubs candidate emails for every test
+  test_api.py              through HTTP: jobs, apply, board, booking
+  test_applicant_actions.py  edit fields, refuse, archive / restore, candidate emails
+  test_interviews.py       reschedule, cancel, feedback
   test_services.py         services directly, no HTTP
   test_migrations.py       migrations == models (fails if you forgot a revision)
 ```

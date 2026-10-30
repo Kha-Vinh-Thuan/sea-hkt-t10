@@ -1,9 +1,9 @@
 // Upcoming interviews across all jobs, soonest first.
 import { useEffect, useState } from 'react'
 import {
-  Alert, Card, CardContent, CircularProgress, Link, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography,
+  Alert, Card, Chip, CardContent, CircularProgress, Link, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography,
 } from '@mui/material'
-import { api, formatWhen, type UpcomingInterview } from '../api'
+import { api, formatWhen, INTERVIEW_STATUS_COLOR, INTERVIEW_STATUS_LABEL, type UpcomingInterview } from '../api'
 
 export default function InterviewsPage({ onError }: { onError: (e: Error) => void }) {
   const [rows, setRows] = useState<UpcomingInterview[] | null>(null)
@@ -28,6 +28,7 @@ export default function InterviewsPage({ onError }: { onError: (e: Error) => voi
               <TableCell>Job</TableCell>
               <TableCell>Interviewer</TableCell>
               <TableCell>Where</TableCell>
+              <TableCell>Status</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -48,6 +49,9 @@ export default function InterviewsPage({ onError }: { onError: (e: Error) => voi
                   {i.location.startsWith('http')
                     ? <Link href={i.location} target="_blank" rel="noopener">Join</Link>
                     : i.location || '—'}
+                </TableCell>
+                <TableCell>
+                  <Chip size="small" label={INTERVIEW_STATUS_LABEL[i.status]} color={INTERVIEW_STATUS_COLOR[i.status]} />
                 </TableCell>
               </TableRow>
             ))}

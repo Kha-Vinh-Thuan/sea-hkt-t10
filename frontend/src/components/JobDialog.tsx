@@ -1,13 +1,14 @@
-// Dialog to create a job position.
+// Dialog to create a job position, or edit one when `job` is given.
 import { useState, type FormEvent } from 'react'
 import {
-  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, Stack, Switch, TextField,
+  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, Switch, TextField,
 } from '@mui/material'
-import { api, type Job } from '../api'
+import { api, EMPLOYMENT_LABEL, type EmploymentType, type Job } from '../api'
 
-type Props = { open: boolean; onClose: () => void; onCreated: (job: Job) => void }
+// Parent passes a fresh `key` per job, so the uncontrolled inputs pick up the new defaults.
+type Props = { open: boolean; job?: Job; onClose: () => void; onSaved: (job: Job) => void }
 
-export default function JobDialog({ open, onClose, onCreated }: Props) {
+export default function JobDialog({ open, job, onClose, onSaved }: Props) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -15,19 +16,28 @@ export default function JobDialog({ open, onClose, onCreated }: Props) {
     event.preventDefault()
     const f = new FormData(event.currentTarget)
     const text = (key: string) => String(f.get(key) ?? '').trim()
+    const numberOrNull = (key: string) => (text(key) ? Number(text(key)) : null)
+    const input = {
+      title: text('title'),
+      department: text('department'),
+      location: text('location'),
+      description: text('description'),
+      requirements: text('requirements'),
+      interview_duration_minutes: Number(text('interview_duration_minutes')),
+      openings: Number(text('openings')),
+      is_open: f.get('is_open') === 'on',
+      opens_on: text('opens_on') || null,
+      closes_on: text('closes_on') || null,
+      employment_type: text('employment_type') as EmploymentType,
+      is_remote: f.get('is_remote') === 'on',
+      salary_min: numberOrNull('salary_min'),
+      salary_max: numberOrNull('salary_max'),
+      expected_degree: text('expected_degree'),
+    }
     setBusy(true)
     setError('')
     try {
-      onCreated(await api.createJob({
-        title: text('title'),
-        department: text('department'),
-        location: text('location'),
-        description: text('description'),
-        requirements: text('requirements'),
-        interview_duration_minutes: Number(text('interview_duration_minutes')),
-        openings: Number(text('openings')),
-        is_open: f.get('is_open') === 'on',
-      }))
+      onSaved(await (job ? api.updateJob(job.id, input) : api.createJob(input)))
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -35,32 +45,59 @@ export default function JobDialog({ open, onClose, onCreated }: Props) {
     }
   }
 
+  const dateInput = { inputLabel: { shrink: true } }
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <form onSubmit={submit}>
-        <DialogTitle>New job position</DialogTitle>
+        <DialogTitle>{job ? 'Edit job position' : 'New job position'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <TextField name="title" label="Title" required autoFocus />
+            <TextField name="title" label="Title" required autoFocus defaultValue={job?.title} />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField name="department" label="Department" fullWidth />
-              <TextField name="location" label="Location" fullWidth />
+              <TextField name="department" label="Department" fullWidth defaultValue={job?.department} />
+              <TextField name="location" label="Location" fullWidth defaultValue={job?.location} />
             </Stack>
-            <TextField name="description" label="Description" multiline minRows={3} />
-            <TextField name="requirements" label="Requirements" multiline minRows={3} placeholder="One per line" />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'center' } }}>
+              <TextField name="employment_type" label="Employment type" select fullWidth
+                defaultValue={job?.employment_type ?? 'full_time'}>
+                {Object.entries(EMPLOYMENT_LABEL).map(([value, label]) => (
+                  <MenuItem key={value} value={value}>{label}</MenuItem>
+                ))}
+              </TextField>
+              <FormControlLabel control={<Switch name="is_remote" defaultChecked={job?.is_remote} />} label="Remote"
+                sx={{ flexShrink: 0 }} />
+            </Stack>
+            <TextField name="description" label="Description" multiline minRows={3} defaultValue={job?.description} />
+            <TextField name="requirements" label="Requirements" multiline minRows={3} placeholder="One per line"
+              defaultValue={job?.requirements} />
+            <TextField name="expected_degree" label="Expected degree" placeholder="e.g. Bachelor in Computer Science"
+              defaultValue={job?.expected_degree} />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField name="salary_min" label="Salary from (VND / month)" type="number" fullWidth
+                defaultValue={job?.salary_min ?? ''} slotProps={{ htmlInput: { min: 0, step: 500000 } }} />
+              <TextField name="salary_max" label="Salary to (VND / month)" type="number" fullWidth
+                defaultValue={job?.salary_max ?? ''} slotProps={{ htmlInput: { min: 0, step: 500000 } }} />
+            </Stack>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField name="opens_on" label="Opens on" type="date" fullWidth
+                defaultValue={job?.opens_on ?? ''} slotProps={dateInput} />
+              <TextField name="closes_on" label="Closes on" type="date" fullWidth
+                defaultValue={job?.closes_on ?? ''} slotProps={dateInput} />
+            </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField name="interview_duration_minutes" label="Interview length (min)" type="number"
-                defaultValue={45} required fullWidth slotProps={{ htmlInput: { min: 5 } }} />
-              <TextField name="openings" label="Openings" type="number" defaultValue={1} required fullWidth
+                defaultValue={job?.interview_duration_minutes ?? 45} required fullWidth slotProps={{ htmlInput: { min: 5 } }} />
+              <TextField name="openings" label="Openings" type="number" defaultValue={job?.openings ?? 1} required fullWidth
                 slotProps={{ htmlInput: { min: 0 } }} />
             </Stack>
-            <FormControlLabel control={<Switch name="is_open" defaultChecked />} label="Published on careers site" />
+            <FormControlLabel control={<Switch name="is_open" defaultChecked={job?.is_open ?? true} />}
+              label="Published on careers site" />
             {error && <Alert severity="error">{error}</Alert>}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" disabled={busy}>Create</Button>
+          <Button type="submit" variant="contained" disabled={busy}>{job ? 'Save' : 'Create'}</Button>
         </DialogActions>
       </form>
     </Dialog>

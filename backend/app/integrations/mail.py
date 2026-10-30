@@ -24,11 +24,14 @@ def _escape(text: str) -> str:
 
 
 def build_ics(uid: str, summary: str, start: datetime, end: datetime, location: str,
-              organizer: str, attendees: list[str]) -> str:
+              organizer: str, attendees: list[str], method: str = "REQUEST", sequence: int = 0) -> str:
+    """method REQUEST creates/updates, CANCEL removes. Calendars match on UID and keep the highest SEQUENCE."""
     lines = [
-        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//HR System//EN", "METHOD:REQUEST",
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//HR System//EN", f"METHOD:{method}",
         "BEGIN:VEVENT",
         f"UID:{uid}",
+        f"SEQUENCE:{sequence}",
+        *(["STATUS:CANCELLED"] if method == "CANCEL" else []),
         f"DTSTAMP:{_ics_time(utcnow())}",
         f"DTSTART:{_ics_time(start)}",
         f"DTEND:{_ics_time(end)}",
@@ -49,15 +52,17 @@ def mail_configured() -> bool:
     return bool(settings.smtp()["host"])
 
 
-def send_invite(to: list[str], subject: str, body: str, ics: str) -> None:
+def send_mail(to: list[str], subject: str, body: str, ics: str | None = None, method: str = "REQUEST") -> None:
+    """Plain text email; with `ics` it carries a calendar invite (method must match METHOD inside the .ics)."""
     config = settings.smtp()
     message = EmailMessage()
     message["From"] = config["sender"]
     message["To"] = ", ".join(to)
     message["Subject"] = subject
     message.set_content(body)
-    message.add_attachment(ics.encode(), maintype="text", subtype="calendar", filename="interview.ics",
-                           params={"method": "REQUEST"})
+    if ics:
+        message.add_attachment(ics.encode(), maintype="text", subtype="calendar", filename="interview.ics",
+                               params={"method": method})
     try:
         with smtplib.SMTP(config["host"], config["port"], timeout=20) as client:
             if config["starttls"]:
@@ -67,3 +72,6 @@ def send_invite(to: list[str], subject: str, body: str, ics: str) -> None:
             client.send_message(message)
     except (smtplib.SMTPException, OSError) as e:
         raise MailError(f"Could not send email: {e}") from e
+
+def send_invite(to: list[str], subject: str, body: str, ics: str, method: str = "REQUEST") -> None:
+    send_mail(to, subject, body, ics, method)

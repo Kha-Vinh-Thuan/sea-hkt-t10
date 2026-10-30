@@ -10,6 +10,7 @@ from sqlmodel import Session, SQLModel, create_engine
 from app.modules.interviews import service as interviews
 from app.config.database import get_session
 from app.main import app
+from app.modules.jobs import service as jobs_service
 from app.modules.jobs.models import Job
 
 LOGIN = {"email": "hr@example.com", "password": "pw"}
@@ -102,7 +103,8 @@ def test_apply_then_recruiter_sees_cv_and_moves_stage(recruiter):
 
     assert recruiter.patch(f"/api/applicants/{applicant_id}/stage", json={"stage": "screening"}).status_code == 200
     detail = recruiter.get(f"/api/applicants/{applicant_id}").json()
-    assert [a["message"] for a in detail["activity"]] == ["Applied through the careers site", "Stage: new → screening"]
+    assert [a["message"] for a in detail["activity"]] == ["Applied through the careers site", "Interest email sent",
+                                                     "Stage: new → screening"]
     assert recruiter.patch(f"/api/applicants/{applicant_id}/stage", json={"stage": "bogus"}).status_code == 422
 
 
@@ -150,3 +152,37 @@ def test_mail_failure_keeps_the_booking_and_reports_it(recruiter, monkeypatch):
 
     assert result["emailed"] is False and "connection refused" in result["mail_error"]
     assert len(recruiter.get(f"/api/applicants/{applicant_id}").json()["interviews"]) == 1
+
+
+def test_job_date_window_hides_job_from_public_and_blocks_apply(recruiter):
+    today = jobs_service.today()
+    past = {"title": "Expired", "closes_on": str(today - timedelta(days=1))}
+    future = {"title": "Not yet", "opens_on": str(today + timedelta(days=1))}
+    current = {"title": "Last day", "opens_on": str(today), "closes_on": str(today), "is_remote": True}
+    ids = {body["title"]: recruiter.post("/api/jobs", json=body).json()["id"] for body in (past, future, current)}
+
+    public = recruiter.get("/api/public/jobs").json()
+    assert {j["title"] for j in public} == {"Backend Developer", "Last day"}
+    assert next(j for j in public if j["title"] == "Last day")["is_remote"] is True
+    for title in ("Expired", "Not yet"):
+        assert recruiter.get(f"/api/public/jobs/{ids[title]}").status_code == 404
+        assert apply(recruiter, job_id=ids[title]).status_code == 404
+    assert apply(recruiter, job_id=ids["Last day"]).status_code == 201
+
+
+def test_job_rejects_inverted_salary_and_date_ranges(recruiter):
+    assert recruiter.post("/api/jobs", json={"title": "X", "salary_min": 20, "salary_max": 10}).status_code == 422
+    assert recruiter.put("/api/jobs/1", json={"title": "X", "opens_on": "2030-02-01",
+                                               "closes_on": "2030-01-01"}).status_code == 422
+    assert recruiter.post("/api/jobs", json={"title": "X", "employment_type": "freelance"}).status_code == 422
+    ok = recruiter.put("/api/jobs/1", json={"title": "X", "salary_min": 10, "salary_max": 10,
+                                             "employment_type": "internship"})
+    assert ok.status_code == 200 and ok.json()["employment_type"] == "internship"
+
+
+def test_recruiter_job_list_counts_hired(recruiter):
+    hired = apply(recruiter).json()["id"]
+    apply(recruiter, email="binh@example.com")
+    recruiter.patch(f"/api/applicants/{hired}/stage", json={"stage": "hired"})
+    job = next(j for j in recruiter.get("/api/jobs").json() if j["id"] == 1)
+    assert (job["applicant_count"], job["hired_count"], job["openings"]) == (2, 1, 1)

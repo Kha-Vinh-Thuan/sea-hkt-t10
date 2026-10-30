@@ -13,6 +13,7 @@ from app.utils.errors import Conflict, Invalid, NotFound
 @pytest.fixture
 def session(tmp_path, monkeypatch):
     monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    monkeypatch.setenv("SMTP_HOST", "smtp.test")  # candidate mails are stubbed in conftest.py
     import_models()
     engine = create_engine("sqlite://")
     SQLModel.metadata.create_all(engine)
@@ -26,7 +27,8 @@ def session(tmp_path, monkeypatch):
 def test_apply_logs_activity_and_rejects_duplicates_and_closed_jobs(session):
     applicant = applicants.apply(session, 1, " An ", "an@example.com", "", "cv.txt", b"Java")
     assert applicant.name == "An" and applicant.cv_text == "Java"
-    assert [a.message for a in applicants.detail(session, applicant.id)["activity"]] == ["Applied through the careers site"]
+    assert [a.message for a in applicants.detail(session, applicant.id)["activity"]] == [
+        "Applied through the careers site", "Interest email sent"]
 
     with pytest.raises(Conflict):
         applicants.apply(session, 1, "An", "an@example.com", "", "cv.txt", b"Java")
@@ -41,4 +43,4 @@ def test_moving_to_the_same_stage_writes_no_log(session):
     applicants.move_stage(session, applicant.id, Stage.new)
     applicants.move_stage(session, applicant.id, Stage.screening)
     messages = [a.message for a in applicants.detail(session, applicant.id)["activity"]]
-    assert messages == ["Applied through the careers site", "Stage: new → screening"]
+    assert messages == ["Applied through the careers site", "Interest email sent", "Stage: new → screening"]
