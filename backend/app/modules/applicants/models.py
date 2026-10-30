@@ -61,7 +61,7 @@ class Applicant(SQLModel, table=True):
     phone: str = ""
     stage: Stage = Stage.new
     cv_filename: str = ""   # original name, shown to recruiters
-    cv_path: str = ""       # random name on disk, never derived from user input
+    cv_path: str = ""       # stored_file key (random, never derived from user input); shared by copies
     cv_text: str = ""       # extracted text, read by recruiters and later by the Filter agent
     linkedin: str = ""
     short_intro: str = ""   # written by the candidate on the apply form
@@ -94,7 +94,7 @@ class ApplicantAttachment(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     applicant_id: int = Field(foreign_key="applicant.id", index=True)
     filename: str           # original name, shown to recruiters
-    stored_path: str        # random name on disk, never derived from user input
+    stored_path: str        # stored_file key (random, never derived from user input)
     content_type: str       # from the checked extension, not the client
     size: int
     created_at: datetime = utc_field(default_factory=utcnow)

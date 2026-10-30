@@ -6,7 +6,8 @@ from sqlmodel import Session
 from app.config.database import get_session
 from app.modules.auth import service
 from app.modules.auth.dependencies import require_user
-from app.modules.auth.schemas import LoginIn
+from app.modules.auth.schemas import LoginIn, MeOut
+from app.modules.google import service as google_service
 from app.modules.users.models import User
 from app.modules.users.schemas import UserBrief
 
@@ -26,6 +27,7 @@ def login(data: LoginIn, request: Request, session: Session = Depends(get_sessio
     token, user = result
     return {"token": token, "email": user.email, "user": UserBrief.model_validate(user, from_attributes=True)}
 
-@router.get("/me", response_model=UserBrief)
-def me(user: User = Depends(require_user)):
-    return user
+@router.get("/me", response_model=MeOut)
+def me(user: User = Depends(require_user), session: Session = Depends(get_session)):
+    return MeOut(**UserBrief.model_validate(user, from_attributes=True).model_dump(),
+                 google_connected=google_service.is_connected(session, user.id))

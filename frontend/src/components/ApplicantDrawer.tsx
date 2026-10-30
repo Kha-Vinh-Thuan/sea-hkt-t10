@@ -7,11 +7,13 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DownloadIcon from '@mui/icons-material/Download'
+import EmailIcon from '@mui/icons-material/EmailOutlined'
 import EventIcon from '@mui/icons-material/Event'
 import {
   api, daysInStage, isStuck, SOURCE_LABEL, STAGE_LABEL, type ApplicantDetail, type Stage, type StageRules,
 } from '../api'
 import ApplicantFields from './ApplicantFields'
+import ComposeEmailDialog from './ComposeEmailDialog'
 import AttachmentList from './AttachmentList'
 import CopyToJobDialog from './CopyToJobDialog'
 import InterviewDialog from './InterviewDialog'
@@ -46,6 +48,7 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
 
   useEffect(() => { api.stageRules().then((r) => setRequirements(r.requirements)).catch(() => {}) }, []) // hint only
   const [copying, setCopying] = useState(false)
+  const [composing, setComposing] = useState<{ stage?: Stage } | null>(null) // stage: offer that stage's template
 
   const reload = useCallback(async (id: number) => setApplicant(await api.applicant(id)), [])
 
@@ -100,7 +103,7 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
             {/* `rejected` is only reachable through Refuse, so a reason is always recorded. */}
             <TextField select label="Stage" value={applicant.stage}
               helperText={`In this stage for ${daysInStage(applicant)} days (since ${new Date(applicant.stage_changed_at).toLocaleString()})`}
-              onChange={(e) => run(() => api.moveStage(applicant.id, e.target.value as Stage))}>
+              onChange={(e) => { const s = e.target.value as Stage; run(async () => { await api.moveStage(applicant.id, s); setComposing({ stage: s }) }) }}>
               {stages.filter((s) => s !== 'rejected' || s === applicant.stage).map((s) => (
                 <MenuItem key={s} value={s} disabled={s === 'rejected'}>{STAGE_LABEL[s]}</MenuItem>
               ))}
@@ -140,6 +143,7 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
 
             <Stack direction="row" spacing={1}>
               <Button variant="contained" startIcon={<EventIcon />} onClick={() => setBooking(true)}>Schedule interview</Button>
+              <Button variant="outlined" startIcon={<EmailIcon />} onClick={() => setComposing({})}>Send email</Button>
               {applicant.cv_filename && (
                 <Button variant="outlined" startIcon={<DownloadIcon />}
                   onClick={() => api.downloadCv(applicant.id, applicant.cv_filename).catch((e: Error) => setError(e.message))}>
@@ -208,16 +212,26 @@ export default function ApplicantDrawer({ applicantId: openedId, stages, onClose
           }} />
       )}
 
+      {applicant && composing && (
+        <ComposeEmailDialog applicantId={applicant.id} stage={composing.stage} onClose={() => setComposing(null)}
+          onSent={({ sent, error }) => {
+            setComposing(null)
+            setNotice(sent ? { severity: 'success', text: 'Email sent.' } : { severity: 'warning', text: `Email not sent: ${error}` })
+            run(async () => {}) // activity log shows the email
+          }} />
+      )}
+
       {applicant && (
         <InterviewDialog
           applicantId={applicant.id}
           open={booking}
           onClose={() => setBooking(false)}
-          onBooked={({ emailed, mailError }) => {
+          onBooked={({ emailed, mailError, proposed }) => {
+            const what = proposed ? 'Times proposed' : 'Interview booked'
             setBooking(false)
             setNotice(emailed
-              ? { severity: 'success', text: 'Interview booked and invitation emailed.' }
-              : { severity: 'warning', text: `Interview booked, but the email failed: ${mailError}` })
+              ? { severity: 'success', text: `${what} and emailed to the candidate.` }
+              : { severity: 'warning', text: `${what}, but the email failed: ${mailError}` })
             run(async () => {})
           }}
         />

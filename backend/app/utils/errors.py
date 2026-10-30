@@ -18,3 +18,7 @@ class Conflict(ServiceError):
 
 class Invalid(ServiceError):
     status_code = 422
+
+
+class Gone(ServiceError):
+    status_code = 410

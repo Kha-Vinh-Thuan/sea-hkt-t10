@@ -1,9 +1,10 @@
-"""Applicant routes: public apply form and the recruiter board (edit, copy, refuse, archive / restore, attachments)."""
+"""Applicant routes: public apply form and the recruiter board (edit, copy, refuse, email, archive / restore, attachments)."""
 
 from typing import Literal
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from pydantic import EmailStr
 from sqlmodel import Session
 
@@ -12,6 +13,7 @@ from app.modules.applicants import service
 from app.modules.applicants.models import STAGE_REQUIREMENTS, STUCK_AFTER_DAYS, RefuseReason, Source, Stage
 from app.modules.applicants.schemas import ApplicantUpdate, CopyIn, RefuseIn, StageIn
 from app.modules.auth.dependencies import require_recruiter
+from app.modules.mail_templates.schemas import ComposeIn
 from app.modules.users.models import User
 
 public_router = APIRouter(prefix="/api/public/jobs", tags=["careers"])
@@ -29,6 +31,12 @@ REFUSE_REASON_LABELS = {
     RefuseReason.duplicate: "Duplicate",
     RefuseReason.spam: "Spam",
 }
+
+def _download(data: bytes, filename: str, content_type: str) -> Response:
+    # Same Content-Disposition FileResponse built when files were on disk (RFC 5987 for non-ASCII names).
+    quoted = quote(filename)
+    disposition = f'attachment; filename="{filename}"' if quoted == filename else f"attachment; filename*=utf-8''{quoted}"
+    return Response(data, media_type=content_type, headers={"Content-Disposition": disposition})
 
 
 @public_router.post("/{job_id}/apply", status_code=201)
@@ -95,6 +103,15 @@ def refuse(applicant_id: int, data: RefuseIn, session: Session = Depends(get_ses
     return service.refuse(session, applicant_id, data.reason, data.send_email)
 
 
+@router.get("/applicants/{applicant_id}/compose")
+def compose_email(applicant_id: int, template_id: int, session: Session = Depends(get_session)):
+    return service.compose_email(session, applicant_id, template_id)
+
+@router.post("/applicants/{applicant_id}/emails")
+def send_email(applicant_id: int, data: ComposeIn, session: Session = Depends(get_session)):
+    # 200 with {sent: false, error} on a mail failure: the attempt is logged, nothing to roll back.
+    return service.send_email(session, applicant_id, data.subject, data.body)
+
 @router.post("/applicants/{applicant_id}/archive")
 def archive(applicant_id: int, session: Session = Depends(get_session)):
     return service.archive(session, applicant_id).model_dump(exclude=CARD_EXCLUDE)
@@ -107,8 +124,7 @@ def restore(applicant_id: int, session: Session = Depends(get_session)):
 
 @router.get("/applicants/{applicant_id}/cv")
 def download_cv(applicant_id: int, session: Session = Depends(get_session)):
-    path, filename = service.cv_file(session, applicant_id)
-    return FileResponse(path, filename=filename)
+    return _download(*service.cv_file(session, applicant_id))
 
 @router.post("/applicants/{applicant_id}/copy", status_code=201)
 def copy_to_job(applicant_id: int, data: CopyIn, session: Session = Depends(get_session)):
@@ -121,8 +137,7 @@ async def add_attachment(applicant_id: int, file: UploadFile = File(), session: 
 
 @router.get("/applicants/{applicant_id}/attachments/{attachment_id}")
 def download_attachment(applicant_id: int, attachment_id: int, session: Session = Depends(get_session)):
-    path, filename, content_type = service.attachment_file(session, applicant_id, attachment_id)
-    return FileResponse(path, filename=filename, media_type=content_type)
+    return _download(*service.attachment_file(session, applicant_id, attachment_id))
 
 @router.delete("/applicants/{applicant_id}/attachments/{attachment_id}", status_code=204)
 def delete_attachment(applicant_id: int, attachment_id: int, session: Session = Depends(get_session)):

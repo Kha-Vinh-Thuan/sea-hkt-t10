@@ -17,3 +17,9 @@ def candidate_mails(monkeypatch):
 def reset_login_limit():
     # The failed-login counter is process memory; one test's wrong passwords must not lock out the next.
     auth_service._failed_logins.clear()
+
+@pytest.fixture(autouse=True)
+def reset_google_cache():
+    # Google free/busy answers are cached per process; tests fake different calendars with the same token.
+    from app.modules.interviews import availability
+    availability._google_cache.clear()

@@ -1,8 +1,8 @@
 // One interview in the applicant drawer: time, interviewer, status, scorecard, and the actions allowed right now.
 import { useState } from 'react'
-import { Box, Button, Chip, Rating, Stack, Typography } from '@mui/material'
+import { Box, Button, Chip, Link, Rating, Stack, Typography } from '@mui/material'
 import {
-  api, formatWhen, INTERVIEW_STATUS_COLOR, INTERVIEW_STATUS_LABEL, RECOMMENDATION_LABEL, type Interview,
+  api, CANDIDATE_RESPONSE_LABEL, formatWhen, INTERVIEW_STATUS_COLOR, INTERVIEW_STATUS_LABEL, RECOMMENDATION_LABEL, type Interview,
 } from '../api'
 import FeedbackDialog from './FeedbackDialog'
 import InterviewDialog from './InterviewDialog'
@@ -41,8 +41,17 @@ export default function InterviewItem({ interview: i, onChanged, onError }: Prop
         <Chip size="small" label={INTERVIEW_STATUS_LABEL[i.status]} color={INTERVIEW_STATUS_COLOR[i.status]} />
       </Stack>
       <Typography variant="caption" color="text.secondary" component="div">
-        {i.interviewer_name || i.interviewer_email}{i.location && ` · ${i.location}`}
+        {i.interviewer_name || i.interviewer_email}{i.location && i.location !== i.meet_url && ` · ${i.location}`}
       </Typography>
+      {(i.meet_url || (i.status === 'scheduled' && i.candidate_response !== 'none')) && (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          {i.status === 'scheduled' && i.candidate_response !== 'none' && (
+            <Chip size="small" variant="outlined" label={CANDIDATE_RESPONSE_LABEL[i.candidate_response]}
+              color={i.candidate_response === 'accepted' ? 'success' : 'error'} />
+          )}
+          {i.meet_url && <Link variant="caption" href={i.meet_url} target="_blank" rel="noreferrer">Google Meet</Link>}
+        </Stack>
+      )}
       {(i.score || i.recommendation) && (
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
           {i.score && <Rating size="small" value={i.score} readOnly />}

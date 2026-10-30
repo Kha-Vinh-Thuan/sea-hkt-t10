@@ -3,12 +3,11 @@ an activity log, recruiter edits (owners), refuse with a reason, archive / resto
 Candidate emails go through emails.py.
 """
 
-from pathlib import Path
-
 from sqlmodel import Session
 
-from app.integrations.cv import CvError, cv_path, delete_file, save_attachment, save_cv
+from app.integrations.cv import CvError, save_attachment, save_cv
 from app.modules.applicants import emails, repository
+from app.modules.files import repository as files
 from app.modules.applicants.models import Applicant, ApplicantAttachment, RefuseReason, Source, Stage
 from app.modules.applicants.schemas import ApplicantUpdate
 from app.modules.interviews import repository as interview_repo
@@ -42,7 +41,7 @@ def apply(session: Session, job_id: int, name: str, email: str, phone: str, file
     if repository.find_by_job_and_email(session, job_id, email):
         raise Conflict("You have already applied for this job")
     try:
-        stored, text = save_cv(filename, data)
+        stored, text = save_cv(session, filename, data)
     except CvError as e:
         raise Invalid(str(e)) from e
     applicant = repository.add(session, Applicant(
@@ -51,7 +50,7 @@ def apply(session: Session, job_id: int, name: str, email: str, phone: str, file
     repository.add_activity(session, applicant.id, "Applied through the careers site")
     session.commit()
     # Saved before emailing: the application stands even if the confirmation mail fails.
-    emails.send(session, applicant, "Interest", emails.INTEREST_SUBJECT, emails.INTEREST_BODY)
+    emails.send(session, applicant, "Interest", "interest")
     session.commit()
     session.refresh(applicant)
     return applicant
@@ -62,7 +61,7 @@ def copy_to_job(session: Session, applicant_id: int, job_id: int) -> Applicant:
     job = job_service.get(session, job_id)
     if repository.find_by_job_and_email(session, job_id, source.email):
         raise Conflict("This email has already applied for that job")
-    # The CV file is shared, not duplicated: stored files are never deleted or overwritten.
+    # The CV is shared, not duplicated: both applicants point at the same stored_file key, and CVs are never deleted.
     copy = repository.add(session, Applicant(
         job_id=job_id, name=source.name, email=source.email, phone=source.phone, linkedin=source.linkedin,
         short_intro=source.short_intro, source=source.source, source_detail=source.source_detail,
@@ -111,7 +110,7 @@ def move_stage(session: Session, applicant_id: int, stage: Stage) -> Applicant:
     change_stage(session, applicant, stage)
     session.commit()
     if hired_now:
-        emails.send(session, applicant, "Congratulations", emails.CONGRATULATIONS_SUBJECT, emails.CONGRATULATIONS_BODY)
+        emails.send(session, applicant, "Congratulations", "congratulations")
         session.commit()
     session.refresh(applicant)
     return applicant
@@ -145,12 +144,17 @@ def refuse(session: Session, applicant_id: int, reason: RefuseReason, send_email
     session.commit()
     emailed, mail_error = False, None
     if send_email:
-        template = (("Not interested", emails.NOT_INTERESTED_SUBJECT, emails.NOT_INTERESTED_BODY)
-                    if reason in WITHDRAWN_REASONS else ("Refusal", emails.REFUSE_SUBJECT, emails.REFUSE_BODY))
+        template = ("Not interested", "not_interested") if reason in WITHDRAWN_REASONS else ("Refusal", "refusal")
         emailed, mail_error = emails.send(session, applicant, *template)
         session.commit()
     session.refresh(applicant)
     return {"applicant": applicant.model_dump(exclude={"cv_text", "cv_path"}), "emailed": emailed, "mail_error": mail_error}
+
+def compose_email(session: Session, applicant_id: int, template_id: int) -> dict:
+    return emails.compose(session, get(session, applicant_id), template_id)
+
+def send_email(session: Session, applicant_id: int, subject: str, body: str) -> dict:
+    return emails.send_composed(session, get(session, applicant_id), subject, body)
 
 def archive(session: Session, applicant_id: int) -> Applicant:
     applicant = get(session, applicant_id)
@@ -173,17 +177,24 @@ def restore(session: Session, applicant_id: int) -> Applicant:
     session.refresh(applicant)
     return applicant
 
-def cv_file(session: Session, applicant_id: int) -> tuple[Path, str]:
-    """(path on disk, original filename) of the applicant's CV."""
+def _file_bytes(session: Session, key: str) -> tuple[bytes, str]:
+    stored = files.get(session, key)
+    if not stored:  # an old disk name not moved yet: run `python -m app.move_uploads_to_db`
+        raise NotFound("File not found")
+    return stored.data, stored.content_type
+
+def cv_file(session: Session, applicant_id: int) -> tuple[bytes, str, str]:
+    """(bytes, original filename, content type) of the applicant's CV."""
     applicant = get(session, applicant_id)
     if not applicant.cv_path:
         raise NotFound("No CV uploaded")
-    return cv_path(applicant.cv_path), applicant.cv_filename
+    data, content_type = _file_bytes(session, applicant.cv_path)
+    return data, applicant.cv_filename, content_type
 
 def add_attachment(session: Session, applicant_id: int, filename: str, data: bytes) -> ApplicantAttachment:
     get(session, applicant_id)
     try:
-        stored, content_type = save_attachment(filename, data)
+        stored, content_type = save_attachment(session, filename, data)
     except CvError as e:
         raise Invalid(str(e)) from e
     attachment = ApplicantAttachment(applicant_id=applicant_id, filename=filename or stored, stored_path=stored,
@@ -200,14 +211,15 @@ def _attachment(session: Session, applicant_id: int, attachment_id: int) -> Appl
         raise NotFound("Attachment not found")
     return attachment
 
-def attachment_file(session: Session, applicant_id: int, attachment_id: int) -> tuple[Path, str, str]:
-    """(path on disk, original filename, content type) of one attachment."""
+def attachment_file(session: Session, applicant_id: int, attachment_id: int) -> tuple[bytes, str, str]:
+    """(bytes, original filename, content type) of one attachment."""
     attachment = _attachment(session, applicant_id, attachment_id)
-    return cv_path(attachment.stored_path), attachment.filename, attachment.content_type
+    data, _ = _file_bytes(session, attachment.stored_path)
+    return data, attachment.filename, attachment.content_type
 
 def delete_attachment(session: Session, applicant_id: int, attachment_id: int) -> None:
     attachment = _attachment(session, applicant_id, attachment_id)
     session.delete(attachment)
+    files.delete(session, attachment.stored_path)  # attachments are never shared, so the bytes go too
     repository.add_activity(session, applicant_id, f"Attachment deleted: {attachment.filename}")
     session.commit()
-    delete_file(attachment.stored_path)  # after the commit, so a failed commit never loses the file

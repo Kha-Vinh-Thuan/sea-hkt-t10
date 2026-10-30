@@ -13,6 +13,7 @@ import {
 } from '../api'
 import ApplicantDrawer from '../components/ApplicantDrawer'
 import BoardFilters from '../components/BoardFilters'
+import ComposeEmailDialog from '../components/ComposeEmailDialog'
 import JobDialog from '../components/JobDialog'
 import RefuseDialog from '../components/RefuseDialog'
 import StageColumn from '../components/StageColumn'
@@ -32,6 +33,7 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
   const [error, setError] = useState('')
   const [filters, setFilters] = useState<ApplicantFilters>({})
   const [refusingId, setRefusingId] = useState<number>()
+  const [composing, setComposing] = useState<{ id: number; stage: Stage }>() // after a drag: offer the stage's template
 
   // An expired or invalid token sends the recruiter back to the login page instead of showing an error.
   const fail = useCallback((e: Error) => (e instanceof UnauthorizedError ? onSignedOut() : setError(e.message)), [onSignedOut])
@@ -71,6 +73,7 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
     try {
       await api.moveStage(id, stage)
       refresh() // job counters (hired) may have changed
+      setComposing({ id, stage })
     } catch (e) {
       setApplicants(before)
       fail(e as Error)
@@ -166,6 +169,11 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
             if (sendEmail && !emailed) setError(`Applicant refused, but the email failed: ${mailError}`)
             refresh()
           }} />
+      )}
+      {composing && (
+        <ComposeEmailDialog key={`${composing.id}-${composing.stage}`} applicantId={composing.id} stage={composing.stage}
+          onClose={() => setComposing(undefined)}
+          onSent={({ sent, error }) => { setComposing(undefined); if (!sent) setError(`Email not sent: ${error}`) }} />
       )}
       <JobDialog
         key={dialog === 'new' ? 'new' : dialog?.id}

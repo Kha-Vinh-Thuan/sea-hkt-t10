@@ -22,13 +22,24 @@ app/
       schemas.py             request/response shapes
     applicants/            apply form, board, stage moves, refuse / archive, recruiter fields, activity log
       controller.py  service.py  repository.py  models.py  schemas.py
-      emails.py              candidate email texts (received, refusal, congratulations)
-    interviews/            book / reschedule / cancel (.ics with stable UID), feedback scorecard
+      emails.py              candidate emails: automatic ones by template key + recruiter composer (send, log)
+    mail_templates/        editable email templates {name} {job} {company} (Odoo mail.template), seeded when empty
       controller.py  service.py  repository.py  models.py  schemas.py
+      defaults.py            built-in texts: seed + fallback when a keyed template was deleted
+    interviews/            book / reschedule / cancel (.ics with stable UID), feedback scorecard, candidate Accept / Decline
+      controller.py  service.py  repository.py  models.py  schemas.py
+      availability.py        free slots: Mon-Fri 09-17 minus busy (Google free/busy + our interviews)
+      calendar_sync.py       mirror an interview on the interviewer's Google Calendar (Meet link); failure only logged
+    bookings/              propose times by email, candidate books one on /book/{token} (no login)
+      controller.py  service.py  repository.py  models.py  schemas.py
+    google/                per-user Google Calendar connect (OAuth code -> refresh token, signed state)
+      controller.py  service.py  repository.py  models.py
     reports/               GET /api/reports/summary: per job counts by stage / source / refuse reason, hired vs openings, avg days to hire
       controller.py  service.py   (no tables, reads applicants and jobs)
     talent_pools/          named groups of applicants to contact later (Odoo hr.talent.pool)
       controller.py  service.py  repository.py  models.py  schemas.py
+    files/                 stored_file table: CV / attachment bytes in the DB (key kept in cv_path / stored_path)
+      models.py  repository.py
     auth/                  login + token
       controller.py          POST /api/auth/login, GET /api/auth/me
       service.py             token signing (user id + role), reloads the user on every request
@@ -38,12 +49,14 @@ app/
       controller.py  service.py  repository.py  models.py  schemas.py
       passwords.py           stdlib scrypt hash + constant-time verify
   integrations/            outside systems, called by services
-    cv.py                    save CV file, extract text (PDF/DOCX/TXT)
+    cv.py                    validate + save CV / attachment as a stored_file row, extract text (PDF/DOCX/TXT)
     mail.py                  SMTP send_mail (optional .ics attachment), build_ics
+    google_calendar.py       Google OAuth + Calendar REST over httpx (freebusy, events with Meet), no SDK
   utils/                   small shared helpers
     errors.py                NotFound / Conflict / Invalid (services raise, main.py maps)
     time.py                  UTC helpers
   seed.py                  demo jobs
+  move_uploads_to_db.py    one-off: old uploads/ files -> stored_file
 migrations/                Alembic revisions (versions/0001_initial_schema.py, ...)
 tests/
   conftest.py              stubs candidate emails for every test
@@ -54,8 +67,26 @@ tests/
   test_reports_pools.py    hire date, reports summary, stage requirements, talent pools
   test_job_extras.py       job recruiter / manager, tags
   test_applicant_more.py   copy to job, attachments, owner, "not interested" mail
+  test_mail_templates.py   render, seeded defaults, admin CRUD, compose / send email
   test_migrations.py       migrations == models (fails if you forgot a revision)
+  test_file_storage.py     CV / attachment bytes in the DB, move script, hosted DATABASE_URL
 ```
+
+## Shared hosted Postgres
+
+The team shares one hosted Postgres (Neon / Supabase); each dev runs the backend locally against it. CV and
+attachment bytes are stored in the `stored_file` table, so every machine can open every file.
+
+1. Create a database in the provider console (e.g. `hr`) and copy its connection URL.
+2. In `backend/.env` set `DATABASE_URL=postgresql://user:password@host/hr?sslmode=require` (keep `sslmode=require`;
+   `postgres://` / `postgresql://` are switched to the psycopg driver automatically).
+3. Start the backend: migrations run on startup.
+4. Optional, once per DB: `python -m app.seed` for demo jobs.
+5. Once, from the machine that holds the old `uploads/` folder: `python -m app.move_uploads_to_db`. It copies every
+   referenced file into `stored_file` under its old name (so applicant rows need no change), prints
+   `moved / already_in_db / missing_on_disk`, is safe to rerun and leaves the files on disk.
+
+`SECRET_KEY` can differ per machine; it only needs to match if a login token from one machine must work on another.
 
 ## Users and roles
 

@@ -52,6 +52,7 @@ export const SOURCE_LABEL: Record<Source, string> = {
 export type Role = 'admin' | 'recruiter' | 'interviewer'
 export const ROLE_LABEL: Record<Role, string> = { admin: 'Admin', recruiter: 'Recruiter', interviewer: 'Interviewer' }
 export type UserBrief = { id: number; name: string; email: string; role: Role }
+export type Me = UserBrief & { google_connected: boolean }
 export type User = UserBrief & { is_active: boolean; created_at: string }
 export type UserInput = { email: string; name: string; role: Role; password: string }
 export type UserUpdate = Partial<Pick<User, 'name' | 'role' | 'is_active'>>
@@ -148,6 +149,30 @@ export type Interview = {
   score: number | null
   recommendation: Recommendation | null
   feedback: string
+  google_event_id: string // '' = not on the interviewer's Google Calendar
+  meet_url: string
+  candidate_response: CandidateResponse
+}
+
+export type CandidateResponse = 'none' | 'accepted' | 'declined'
+export const CANDIDATE_RESPONSE_LABEL: Record<CandidateResponse, string> = {
+  none: 'No answer yet', accepted: 'Candidate accepted', declined: 'Candidate declined',
+}
+export type Slot = { start: string; end: string }
+
+// GET /interviewers/busy: busy blocks only (our interviews + Google free/busy), never Google event titles.
+export type BusyBlock = Slot & { source: 'interview' | 'google' }
+export type InterviewerBusy = {
+  user_id: number; name: string; email: string; google_connected: boolean; google_ok: boolean; busy: BusyBlock[]
+}
+
+// Public pages (no login): the candidate's booking link and Accept / Decline link.
+export type BookingPage = {
+  job_title: string; candidate_name: string; minutes: number; location: string; expires_at: string; slots: Slot[]
+}
+export type CandidateInterview = {
+  job_title: string; candidate_name: string; start: string; end: string; location: string; meet_url: string
+  status: InterviewStatus; candidate_response: CandidateResponse
 }
 
 export type InterviewStatus = 'scheduled' | 'done' | 'no_show' | 'cancelled'
@@ -181,6 +206,11 @@ export type Attachment = { id: number; applicant_id: number; filename: string; c
 export type OtherApplication = {
   id: number; job_id: number; job_title: string; stage: Stage; archived: boolean; created_at: string
 }
+
+// Editable email texts with {name} / {job} / {company}; `key` marks the seeded ones the app sends by itself.
+export type MailTemplate = { id: number; key: string | null; name: string; subject: string; body: string; stage: Stage | null }
+export type MailTemplateInput = Pick<MailTemplate, 'name' | 'subject' | 'body' | 'stage'>
+export type EmailDraft = { subject: string; body: string }
 
 export type InterviewInput = { start: string; interviewer_name: string; interviewer_email: string; location: string }
 
@@ -233,7 +263,9 @@ export const api = {
 
   login: (email: string, password: string) =>
     request<{ token: string; email: string; user: UserBrief }>('/auth/login', json('POST', { email, password })),
-  me: () => request<UserBrief>('/auth/me'),
+  me: () => request<Me>('/auth/me'),
+  googleConnectUrl: () => request<{ url: string }>('/google/connect'),
+  googleDisconnect: () => request<null>('/google/connection', { method: 'DELETE' }),
   users: (role?: Role) => request<UserBrief[]>(`/users${role ? `?role=${role}` : ''}`),
   adminUsers: () => request<User[]>('/admin/users'),
   createUser: (data: UserInput) => request<User>('/admin/users', json('POST', data)),
@@ -279,6 +311,35 @@ export const api = {
   cancelInterview: (id: number) => request<InterviewResult>(`/interviews/${id}/cancel`, { method: 'POST' }),
   interviewFeedback: (id: number, data: FeedbackInput) =>
     request<Interview>(`/interviews/${id}/feedback`, json('POST', data)),
+  freeSlots: (userId: number, applicantId: number, days = 7) =>
+    request<Slot[]>(`/interviewers/${userId}/free-slots?applicant_id=${applicantId}&days=${days}`),
+  teamBusy: (userIds: number[], start: Date, days = 5) => {
+    const params = new URLSearchParams({ start: start.toISOString(), days: String(days) })
+    for (const id of userIds) params.append('user_ids', String(id))
+    return request<InterviewerBusy[]>(`/interviewers/busy?${params}`)
+  },
+  proposeSlots: (applicantId: number, data: { interviewer_id: number; slots: string[]; location: string }) =>
+    request<{ id: number; link: string; emailed: boolean; mail_error: string | null }>(
+      `/applicants/${applicantId}/slot-proposals`, json('POST', data)),
+  bookingPage: (token: string) => request<BookingPage>(`/public/bookings/${encodeURIComponent(token)}`),
+  bookSlot: (token: string, start: string) =>
+    request<{ start: string; end: string; location: string; meet_url: string }>(
+      `/public/bookings/${encodeURIComponent(token)}`, json('POST', { start })),
+  candidateInterview: (token: string) =>
+    request<CandidateInterview>(`/public/interviews/${encodeURIComponent(token)}`),
+  answerInterview: (token: string, answer: 'accepted' | 'declined') =>
+    request<CandidateInterview>(`/public/interviews/${encodeURIComponent(token)}/response?answer=${answer}`,
+      { method: 'POST' }),
+
+  mailTemplates: () => request<MailTemplate[]>('/mail-templates'),
+  createMailTemplate: (data: MailTemplateInput) => request<MailTemplate>('/admin/mail-templates', json('POST', data)),
+  updateMailTemplate: (id: number, data: MailTemplateInput) =>
+    request<MailTemplate>(`/admin/mail-templates/${id}`, json('PUT', data)),
+  deleteMailTemplate: (id: number) => request<null>(`/admin/mail-templates/${id}`, { method: 'DELETE' }),
+  composeEmail: (id: number, templateId: number) =>
+    request<EmailDraft>(`/applicants/${id}/compose?template_id=${templateId}`),
+  sendEmail: (id: number, draft: EmailDraft) =>
+    request<{ sent: boolean; error: string | null }>(`/applicants/${id}/emails`, json('POST', draft)),
 
   copyApplicant: (id: number, jobId: number) => request<Applicant>(`/applicants/${id}/copy`, json('POST', { job_id: jobId })),
   uploadAttachment: (id: number, file: File) => {

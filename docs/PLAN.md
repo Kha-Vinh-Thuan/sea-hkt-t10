@@ -95,10 +95,10 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 |---|---|---|
 | meeting linked to applicant, attendees, invite mail | interview + `.ics` mail | done |
 | reschedule / cancel with update mail | yes | done (#11) |
-| attendee Accept / Decline, reminders | none | later |
+| attendee Accept / Decline, reminders | Accept / Decline links in the invite (public page); reminders skipped (need a scheduler) | done (#37), reminders later |
 | interview survey per applicant (scores, answers) | yes | done (#21: scorecard (score 1–5, verdict, notes) per interview) |
 | interview status (done / no-show) | yes | done (#21) |
-| Google / Outlook calendar sync | none | #17 |
+| Google / Outlook calendar sync | Google per user (OAuth refresh token): free/busy, event + Meet link; Outlook none | done (#17) |
 
 ### Platform features
 
@@ -162,8 +162,8 @@ Revisit only if the product grows from "hiring" into "HR core"; `hr` (employee) 
 | 14 | Interviewer list per job (pick from users instead of typing an email) | done |
 | 15 | Search / filter applicants, drag-and-drop between stages | done |
 | 16 | Rejection email to candidates | done |
-| 17 | Google Calendar: read interviewer busy times (freebusy), create event with Meet link | later |
-| 18 | Hook for jobhunter-platform agents: expose services as the provider the agents call | later, after harness specs |
+| 17 | Google Calendar: read interviewer busy times (freebusy), create event with Meet link | done (needs GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET to run for real) |
+| 18 | Hook for jobhunter-platform agents: expose services as the provider the agents call | later: the platform will adapt to this app's API once the manual flow is done |
 | 19 | Job fields: open/close dates (apply blocked outside), target vs hired, employment type, salary range, degree; edit job UI (#10) shows them | done |
 | 20 | Applicant fields: notes, priority stars, tags, LinkedIn, start date, degree, expected/proposed salary, archive, last stage change date | done |
 | 21 | Interview scorecard: score, verdict, notes per interview; status done / no-show | done |
@@ -181,6 +181,11 @@ Revisit only if the product grows from "hiring" into "HR core"; `hr` (employee) 
 | 33 | Applicant: copy to job, attachments, owner + "Mine" filter, to-do owner, "not interested" mail | done |
 | 34 | Hire date, Reports tab, stage requirements in the drawer | done |
 | 35 | Talent pools (tab + drawer picker) | done |
+| 36 | Email composer (Odoo `mail.compose.message` + `mail.template`): editable templates (admin), compose from the drawer with a template prefilled, real SMTP send, sent mail in the activity log; moving into a stage that has a template opens the composer prefilled (human reviews, then sends) | done |
+| 37 | Scheduling with the candidate: interviewer free slots (Google free/busy, else our interviews) inside working hours; propose times by email, candidate picks one on a public page; Accept / Decline links in the invite; Google event + Meet link when the interviewer connected Google | done; reminders later (need a scheduler) |
+| 38 | Automation (agent) side: machine API `/api/agent/v1` (API key) shaped like the platform's `HiringProvider` (job, candidates, interviewers, availability); agent posts assessments (score, summary, skills) and approval requests; "Automation" inbox where a human approves / rejects; approved actions run through the same services; events pushed to the platform webhook (`event_id`, HMAC) | later (after the manual flow; platform follows this app) |
+| 39 | Remote database for the team: CV + attachment files stored in the DB (not local disk), `pool_pre_ping`, SSL URL, one-off script to move existing uploads, run notes for a hosted Postgres | done (Supabase: use the Session pooler URL) |
+| 40 | Team calendar (Odoo attendee calendar): week grid in the booking dialog with every job interviewer's busy blocks side by side (our interviews + Google free/busy, 90 s cache, never event titles); click a free cell to fill interviewer + start. Booking / rescheduling re-asks Google live and takes a per-interviewer Postgres advisory lock, so neither people nor a future agent can double-book; Google unreachable = book with a warning in the activity log | done |
 
 #10, #11, #16, #19–#23 were built in parallel by three agents (jobs / applicants / interviews), then merged with one
 migration (`0002`). #13–#15, #24–#27 the same way (users / board / applicant extras), migration `0003`.
@@ -189,8 +194,24 @@ applicants repository, duplicate Sign out button removed.
 
 #32–#35 the same way (jobs / applicants / reports + pools), migration `0004`.
 
-Next: #17 (Google Calendar), #18 (agent hook, after the specs). Section 2 has no "later" rows left except calendar
-replies (Accept / Decline, reminders) below.
+Round 5 (#17, #36, #37, #39): turn the app into a normal internal HR tool where every step can be done by hand
+(drag stages, compose and send real mail, book on the interviewer's real calendar, let the candidate pick a time),
+later the jobhunter-platform agents drive the same steps (#38); the HR app keeps the screens for anything that needs
+a human. Round 5 does the manual flow only (#17, #36, #37, #39), three parallel agents, merged with migration `0005`.
+
+Needs from the team: Google Cloud OAuth client (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`), the hosted Postgres
+URL. Code works without them (falls back to local data and Mailpit).
+
+Verified 2026-10-30 (round 5): 72 backend tests pass; frontend build and lint clean; migration 0005 up / down / up on
+Postgres, existing interviews got unique `response_token`s. Live on Postgres + Mailpit: CV bytes stored in and served
+from the DB; 6 templates seeded; compose "offer" from template and send; interviewer free slots (73 in 7 days);
+propose 3 times by email -> public `/book/:token` page books one (interview created, stage interview, invite with
+Accept / Decline links), reusing the link gives 409; `/interview/:token` page records "declined". Google connect
+returns 422 "not configured" until the OAuth client is set. Not tested against real Google yet.
+
+Verified 2026-10-30 (#40): 76 backend tests pass (live Google re-check after a cached view, Google down = warning,
+several interviewers, cache); build and lint clean. Browser: grid shows Techlead A busy Mon 10:00, click Tue 12:00
+fills Techlead A + time, booking saved; an overlapping booking returns 409.
 
 Verified 2026-10-30 (#28–#35): 53 backend tests pass; frontend build and lint clean; migration 0004 up / down / up
 on Postgres. Browser: book, reschedule, feedback (saved: done, 4, hire), edit job target. Live API: job owners +

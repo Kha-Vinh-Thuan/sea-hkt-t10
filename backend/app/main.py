@@ -13,8 +13,11 @@ from fastapi.responses import JSONResponse
 from app.config.database import migrate
 from app.modules.applicants import controller as applicants
 from app.modules.auth import controller as auth
+from app.modules.bookings import controller as bookings
+from app.modules.google import controller as google
 from app.modules.interviews import controller as interviews
 from app.modules.jobs import controller as jobs
+from app.modules.mail_templates import controller as mail_templates
 from app.modules.reports import controller as reports
 from app.modules.talent_pools import controller as talent_pools
 from app.modules.users import controller as users
@@ -32,7 +35,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allo
 
 for router in (jobs.public_router, applicants.public_router, auth.router,
                jobs.router, applicants.router, interviews.router, users.router, users.admin_router,
-               reports.router, talent_pools.router):
+               reports.router, talent_pools.router, mail_templates.router, mail_templates.admin_router,
+               google.router, bookings.router, bookings.public_router, interviews.public_router):
     app.include_router(router)
 
 

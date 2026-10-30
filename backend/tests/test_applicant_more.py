@@ -1,6 +1,6 @@
 """Copy to another job, extra attachments, recruiter / to-do owners, "not interested" email."""
 
-from app.modules.applicants import emails
+from app.modules.mail_templates.defaults import DEFAULTS
 from tests.test_api import apply, client, recruiter  # noqa: F401  (fixtures reused)
 from tests.test_applicant_extras import add_job, detail
 
@@ -81,4 +81,4 @@ def test_withdrawn_reasons_send_not_interested_email(recruiter, candidate_mails)
         result = recruiter.post(f"/api/applicants/{applicant_id}/refuse", json={"reason": reason, "send_email": True})
         assert result.json()["emailed"] is True
         assert candidate_mails[-1] == {"to": [email], "subject": subject}
-    assert emails.NOT_INTERESTED_SUBJECT != emails.REFUSE_SUBJECT
+    assert DEFAULTS["not_interested"].subject != DEFAULTS["refusal"].subject
