@@ -9,8 +9,7 @@ services:
       - db-data:/var/lib/postgresql/data
 
   odoo:
-    build: .
-    image: t10-odoo
+    image: odoo:latest
     depends_on: [db]
     command: ["--dev=reload,xml,qweb"]
     ports:
@@ -19,13 +18,6 @@ services:
       HOST: db
       USER: odoo
       PASSWORD: odoo
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
-      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
-      T10_API_URL: ${T10_API_URL:-http://ml:8000}
-      T10_API_KEY: ${T10_API_KEY:-}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
       - odoo-data:/var/lib/odoo
       # ponytail: core hr* modules forked; mounted over core path (core shadows /mnt/extra-addons)
@@ -53,29 +45,6 @@ services:
       - ./addons/hr_timesheet:/usr/lib/python3/dist-packages/odoo/addons/hr_timesheet
       - ./addons/hr_timesheet_attendance:/usr/lib/python3/dist-packages/odoo/addons/hr_timesheet_attendance
       - ./addons/hr_work_entry:/usr/lib/python3/dist-packages/odoo/addons/hr_work_entry
-      - ./addons/t10_ai_interview:/mnt/extra-addons/t10_ai_interview
-      - ./addons/rag_interview_agent:/mnt/extra-addons/rag_interview_agent
-
-  ml:
-    build: ./ml
-    image: t10-ml
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./ml:/ml
-    environment:
-      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
-      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      T10_ADMIN_KEY: ${T10_ADMIN_KEY:-}
-      T10_PUBLIC_URL: ${T10_PUBLIC_URL:-http://localhost:8000}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
 
 volumes:
   db-data:
