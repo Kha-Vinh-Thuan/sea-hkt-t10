@@ -1,22 +1,20 @@
 // Recruiter area: "Pipeline" (jobs + applicants by stage) and "Interviews" (upcoming list).
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Alert, AppBar, Avatar, Box, Button, Card, CardActionArea, CardContent, Chip, CircularProgress, IconButton, List,
-  ListItemButton, ListItemText, Paper, Stack, Tab, Tabs, Toolbar, Tooltip, Typography,
+  Alert, AppBar, Box, Button, Chip, CircularProgress, List, ListItemButton, ListItemText, Paper, Stack, Tab,
+  Tabs, Toolbar, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import LogoutIcon from '@mui/icons-material/Logout'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline'
-import { api, STAGE_LABEL, UnauthorizedError, type Applicant, type Job, type Stage } from '../api'
+import { api, STAGE_LABEL, UnauthorizedError, type Applicant, type ApplicantFilters, type Job, type Stage } from '../api'
 import ApplicantDrawer from '../components/ApplicantDrawer'
+import BoardFilters from '../components/BoardFilters'
 import JobDialog from '../components/JobDialog'
+import RefuseDialog from '../components/RefuseDialog'
+import StageColumn from '../components/StageColumn'
 import InterviewsPage from './InterviewsPage'
-
-function initials(name: string) {
-  return name.split(' ').filter(Boolean).slice(-2).map((w) => w[0]).join('').toUpperCase() || '?'
-}
 
 export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) {
   const [tab, setTab] = useState<'pipeline' | 'interviews'>('pipeline')
@@ -27,11 +25,13 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
   const [openId, setOpenId] = useState<number>()
   const [dialog, setDialog] = useState<'new' | Job | null>(null)
   const [error, setError] = useState('')
+  const [filters, setFilters] = useState<ApplicantFilters>({})
+  const [refusingId, setRefusingId] = useState<number>()
 
   // An expired or invalid token sends the recruiter back to the login page instead of showing an error.
   const fail = useCallback((e: Error) => (e instanceof UnauthorizedError ? onSignedOut() : setError(e.message)), [onSignedOut])
   const loadJobs = useCallback(() => api.jobs().then((j) => { setJobs(j); return j }), [])
-  const loadApplicants = useCallback((id: number) => api.applicants(id).then(setApplicants), [])
+  const loadApplicants = useCallback((id: number) => api.applicants(id, filters).then(setApplicants), [filters])
 
   useEffect(() => {
     Promise.all([loadJobs(), api.stages()])
@@ -52,6 +52,22 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
     loadJobs().catch(fail)
   }
 
+  // Dropping on `rejected` goes through Refuse so a reason is recorded; other moves are optimistic with rollback.
+  async function dropApplicant(id: number, stage: Stage) {
+    const before = applicants
+    const moved = before?.find((a) => a.id === id)
+    if (!before || !moved || moved.stage === stage) return
+    if (stage === 'rejected') return setRefusingId(id)
+    setApplicants(before.map((a) => (a.id === id ? { ...a, stage } : a)))
+    try {
+      await api.moveStage(id, stage)
+      refresh() // job counters (hired) may have changed
+    } catch (e) {
+      setApplicants(before)
+      fail(e as Error)
+    }
+  }
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <AppBar position="sticky" elevation={0} color="inherit" sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -64,9 +80,6 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
           </Tabs>
           <Button href="/careers" target="_blank" endIcon={<OpenInNewIcon />}>Careers site</Button>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialog('new')}>New job</Button>
-          <Tooltip title="Sign out">
-            <IconButton onClick={onSignedOut} aria-label="Sign out"><LogoutIcon /></IconButton>
-          </Tooltip>
         </Toolbar>
       </AppBar>
 
@@ -100,43 +113,45 @@ export default function BoardPage({ onSignedOut }: { onSignedOut: () => void }) 
                 <Button size="small" startIcon={<EditOutlinedIcon />} onClick={() => setDialog(selectedJob)}>Edit job</Button>
               </Stack>
             )}
+            <BoardFilters value={filters} onChange={setFilters} />
             {applicants === null ? (
               jobs.length || error ? <CircularProgress sx={{ m: 4 }} /> : null
             ) : (
-              <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start' }}>
-                {stages.map((stage) => {
-                  const items = applicants.filter((a) => a.stage === stage)
-                  return (
-                    <Paper key={stage} variant="outlined" sx={{ width: 260, flexShrink: 0, p: 1.5, bgcolor: 'action.hover' }}>
-                      <Stack direction="row" sx={{ mb: 1.5, alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Typography variant="subtitle2" fontWeight={700}>{STAGE_LABEL[stage]}</Typography>
-                        <Chip size="small" label={items.length} />
-                      </Stack>
-                      <Stack spacing={1}>
-                        {items.map((a) => (
-                          <Card key={a.id} variant="outlined">
-                            <CardActionArea onClick={() => setOpenId(a.id)}>
-                              <CardContent sx={{ display: 'flex', gap: 1.5, alignItems: 'center', '&:last-child': { pb: 2 } }}>
-                                <Avatar sx={{ width: 36, height: 36, fontSize: 14 }}>{initials(a.name)}</Avatar>
-                                <Box sx={{ minWidth: 0 }}>
-                                  <Typography variant="subtitle2" noWrap>{a.name}</Typography>
-                                  <Typography variant="caption" color="text.secondary" noWrap component="div">{a.email}</Typography>
-                                </Box>
-                              </CardContent>
-                            </CardActionArea>
-                          </Card>
-                        ))}
-                      </Stack>
-                    </Paper>
-                  )
-                })}
-              </Stack>
+              filters.archived ? (
+                // Archived applicants are off the board; open one to restore it from the drawer.
+                <Paper variant="outlined">
+                  <List dense>
+                    {applicants.map((a) => (
+                      <ListItemButton key={a.id} onClick={() => setOpenId(a.id)}>
+                        <ListItemText primary={a.name} secondary={a.email} />
+                        <Chip size="small" label={STAGE_LABEL[a.stage]} />
+                      </ListItemButton>
+                    ))}
+                    {!applicants.length && <ListItemText sx={{ px: 2 }} secondary="No archived applicants." />}
+                  </List>
+                </Paper>
+              ) : (
+                <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start' }}>
+                  {stages.map((stage) => (
+                    <StageColumn key={stage} stage={stage} items={applicants.filter((a) => a.stage === stage)}
+                      onOpen={setOpenId} onDropApplicant={dropApplicant} />
+                  ))}
+                </Stack>
+              )
             )}
           </Box>
         </Box>
       )}
 
       <ApplicantDrawer applicantId={openId} stages={stages} onClose={() => setOpenId(undefined)} onChanged={refresh} />
+      {refusingId !== undefined && (
+        <RefuseDialog applicantId={refusingId} open onClose={() => setRefusingId(undefined)}
+          onRefused={({ emailed, mailError, sendEmail }) => {
+            setRefusingId(undefined)
+            if (sendEmail && !emailed) setError(`Applicant refused, but the email failed: ${mailError}`)
+            refresh()
+          }} />
+      )}
       <JobDialog
         key={dialog === 'new' ? 'new' : dialog?.id}
         open={dialog !== null}

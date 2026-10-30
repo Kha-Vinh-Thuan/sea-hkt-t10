@@ -1,21 +1,25 @@
-// Upcoming interviews across all jobs, soonest first.
-import { useEffect, useState } from 'react'
+// Interviews list, soonest first: upcoming ones for recruiters, all of their own for an interviewer (server decides).
+// Started, non-cancelled interviews get a Feedback action.
+import { useCallback, useEffect, useState } from 'react'
 import {
-  Alert, Card, Chip, CardContent, CircularProgress, Link, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography,
+  Alert, Button, Card, Chip, CardContent, CircularProgress, Link, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography,
 } from '@mui/material'
 import { api, formatWhen, INTERVIEW_STATUS_COLOR, INTERVIEW_STATUS_LABEL, type UpcomingInterview } from '../api'
+import FeedbackDialog from '../components/FeedbackDialog'
 
 export default function InterviewsPage({ onError }: { onError: (e: Error) => void }) {
   const [rows, setRows] = useState<UpcomingInterview[] | null>(null)
   const [error, setError] = useState('')
+  const [feedbackFor, setFeedbackFor] = useState<UpcomingInterview>()
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api.interviews().then(setRows).catch((e: Error) => { setError(e.message); onError(e) })
   }, [onError])
+  useEffect(load, [load])
 
   if (error) return <Alert severity="error">{error}</Alert>
   if (!rows) return <CircularProgress />
-  if (!rows.length) return <Typography color="text.secondary">No upcoming interviews.</Typography>
+  if (!rows.length) return <Typography color="text.secondary">No interviews.</Typography>
 
   return (
     <Card variant="outlined">
@@ -29,6 +33,7 @@ export default function InterviewsPage({ onError }: { onError: (e: Error) => voi
               <TableCell>Interviewer</TableCell>
               <TableCell>Where</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
@@ -53,10 +58,19 @@ export default function InterviewsPage({ onError }: { onError: (e: Error) => voi
                 <TableCell>
                   <Chip size="small" label={INTERVIEW_STATUS_LABEL[i.status]} color={INTERVIEW_STATUS_COLOR[i.status]} />
                 </TableCell>
+                <TableCell>
+                  {new Date(i.start).getTime() <= Date.now() && i.status !== 'cancelled' && (
+                    <Button size="small" onClick={() => setFeedbackFor(i)}>Feedback</Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        {feedbackFor && (
+          <FeedbackDialog interview={feedbackFor} open onClose={() => setFeedbackFor(undefined)}
+            onSaved={() => { setFeedbackFor(undefined); load() }} />
+        )}
       </CardContent>
     </Card>
   )

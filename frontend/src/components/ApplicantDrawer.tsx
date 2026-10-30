@@ -1,20 +1,31 @@
 // Side panel for one applicant: contact, stage, refuse / archive, recruiter fields, interviews, CV text, activity log.
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Alert, Box, Button, CircularProgress, Divider, Drawer, IconButton, Link, MenuItem, Stack, TextField, Typography,
+  Alert, Box, Button, Chip, CircularProgress, Divider, Drawer, IconButton, Link, MenuItem, Stack, TextField, Typography,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import DownloadIcon from '@mui/icons-material/Download'
 import EventIcon from '@mui/icons-material/Event'
-import { api, REFUSE_REASON_LABEL, STAGE_LABEL, type ApplicantDetail, type Stage } from '../api'
+import {
+  api, daysInStage, isStuck, REFUSE_REASON_LABEL, SOURCE_LABEL, STAGE_LABEL, type ApplicantDetail, type Stage,
+} from '../api'
 import ApplicantFields from './ApplicantFields'
 import InterviewDialog from './InterviewDialog'
 import InterviewItem from './InterviewItem'
+import OtherApplications from './OtherApplications'
 import RefuseDialog from './RefuseDialog'
 
 type Props = { applicantId?: number; stages: Stage[]; onClose: () => void; onChanged: () => void }
 
-export default function ApplicantDrawer({ applicantId, stages, onClose, onChanged }: Props) {
+const today = () => new Date().toLocaleDateString('en-CA') // local YYYY-MM-DD, same format as the due date
+
+export default function ApplicantDrawer({ applicantId: openedId, stages, onClose, onChanged }: Props) {
+  // "Also applied to" links switch the drawer to another applicant without the board knowing;
+  // the switch only counts while the board still has the same applicant open.
+  const [switched, setSwitched] = useState<{ from?: number; to: number } | null>(null)
+  const applicantId = switched && switched.from === openedId ? switched.to : openedId
+  // Forget the switch on close, so reopening the same card shows that card again.
+  const close = () => { setSwitched(null); onClose() }
   const [applicant, setApplicant] = useState<ApplicantDetail | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState<{ severity: 'success' | 'warning'; text: string } | null>(null)
@@ -42,11 +53,11 @@ export default function ApplicantDrawer({ applicantId, stages, onClose, onChange
   }
 
   return (
-    <Drawer anchor="right" open={applicantId !== undefined} onClose={onClose}>
+    <Drawer anchor="right" open={applicantId !== undefined} onClose={close}>
       <Box sx={{ width: { xs: '100vw', sm: 480 }, p: 3 }}>
         <Stack direction="row" sx={{ alignItems: 'center', mb: 2 }}>
           <Typography variant="h6" fontWeight={700} sx={{ flex: 1 }}>{applicant?.name ?? 'Applicant'}</Typography>
-          <IconButton onClick={onClose} aria-label="Close"><CloseIcon /></IconButton>
+          <IconButton onClick={close} aria-label="Close"><CloseIcon /></IconButton>
         </Stack>
 
         {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
@@ -73,12 +84,26 @@ export default function ApplicantDrawer({ applicantId, stages, onClose, onChange
 
             {/* `rejected` is only reachable through Refuse, so a reason is always recorded. */}
             <TextField select label="Stage" value={applicant.stage}
-              helperText={`Since ${new Date(applicant.stage_changed_at).toLocaleString()}`}
+              helperText={`In this stage for ${daysInStage(applicant)} days (since ${new Date(applicant.stage_changed_at).toLocaleString()})`}
               onChange={(e) => run(() => api.moveStage(applicant.id, e.target.value as Stage))}>
               {stages.filter((s) => s !== 'rejected' || s === applicant.stage).map((s) => (
                 <MenuItem key={s} value={s} disabled={s === 'rejected'}>{STAGE_LABEL[s]}</MenuItem>
               ))}
             </TextField>
+
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+              {isStuck(applicant) && <Chip size="small" color="warning" label="Stuck in this stage" />}
+              <Chip size="small" variant="outlined"
+                label={`Source: ${SOURCE_LABEL[applicant.source]}${applicant.source_detail ? ` (${applicant.source_detail})` : ''}`} />
+              {applicant.next_action && <Chip size="small" variant="outlined" label={`Next: ${applicant.next_action}`} />}
+              {applicant.next_action_due && (
+                <Chip size="small" color={applicant.next_action_due < today() ? 'error' : 'default'}
+                  label={`${applicant.next_action_due < today() ? 'Overdue' : 'Due'} ${applicant.next_action_due}`} />
+              )}
+            </Stack>
+
+            <OtherApplications items={applicant.other_applications}
+              onOpen={(id) => setSwitched({ from: openedId, to: id })} />
 
             <Stack direction="row" spacing={1}>
               {applicant.stage !== 'rejected' && (

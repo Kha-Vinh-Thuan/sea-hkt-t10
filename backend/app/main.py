@@ -15,6 +15,7 @@ from app.modules.applicants import controller as applicants
 from app.modules.auth import controller as auth
 from app.modules.interviews import controller as interviews
 from app.modules.jobs import controller as jobs
+from app.modules.users import controller as users
 from app.utils.errors import ServiceError
 
 
@@ -28,7 +29,7 @@ app = FastAPI(title="HR System API", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["*"], allow_headers=["*"])
 
 for router in (jobs.public_router, applicants.public_router, auth.router,
-               jobs.router, applicants.router, interviews.router):
+               jobs.router, applicants.router, interviews.router, users.router, users.admin_router):
     app.include_router(router)
 
 

@@ -1,10 +1,10 @@
-// Recruiter sign-in. On success the token is stored and the board reloads.
+// Staff sign-in (admin, recruiter, interviewer). On success the token + user are stored and App picks the screen.
 import { useState, type FormEvent } from 'react'
 import { Alert, Box, Button, Card, CardContent, Stack, TextField, Typography } from '@mui/material'
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline'
-import { api, session } from '../api'
+import { api, session, type UserBrief } from '../api'
 
-export default function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
+export default function LoginPage({ onLoggedIn }: { onLoggedIn: (user: UserBrief) => void }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -14,9 +14,9 @@ export default function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
     setBusy(true)
     setError('')
     try {
-      const { token } = await api.login(String(form.get('email')), String(form.get('password')))
-      session.save(token)
-      onLoggedIn()
+      const { token, user } = await api.login(String(form.get('email')), String(form.get('password')))
+      session.save(token, user)
+      onLoggedIn(user)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -31,7 +31,7 @@ export default function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
           <Stack component="form" spacing={2.5} onSubmit={submit}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <WorkOutlineIcon color="primary" />
-              <Typography variant="h5" fontWeight={800}>Recruiter sign in</Typography>
+              <Typography variant="h5" fontWeight={800}>Sign in</Typography>
             </Stack>
             <TextField name="email" label="Email" type="email" required autoFocus autoComplete="username" />
             <TextField name="password" label="Password" type="password" required autoComplete="current-password" />

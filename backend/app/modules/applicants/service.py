@@ -8,7 +8,7 @@ from sqlmodel import Session
 
 from app.integrations.cv import CvError, cv_path, save_cv
 from app.modules.applicants import emails, repository
-from app.modules.applicants.models import Applicant, RefuseReason, Stage
+from app.modules.applicants.models import Applicant, RefuseReason, Source, Stage
 from app.modules.applicants.schemas import ApplicantUpdate
 from app.modules.interviews import repository as interview_repo
 from app.modules.jobs import service as job_service
@@ -30,7 +30,7 @@ def _check_linkedin(url: str) -> str:
     return url
 
 def apply(session: Session, job_id: int, name: str, email: str, phone: str, filename: str, data: bytes,
-          linkedin: str = "", short_intro: str = "") -> Applicant:
+          linkedin: str = "", short_intro: str = "", source: Source = Source.careers_site) -> Applicant:
     job_service.get_open(session, job_id)
     linkedin = _check_linkedin(linkedin)
     if len(short_intro) > MAX_INTRO:
@@ -43,7 +43,7 @@ def apply(session: Session, job_id: int, name: str, email: str, phone: str, file
         raise Invalid(str(e)) from e
     applicant = repository.add(session, Applicant(
         job_id=job_id, name=name.strip(), email=email, phone=phone.strip(), linkedin=linkedin,
-        short_intro=short_intro.strip(), cv_filename=filename or stored, cv_path=stored, cv_text=text))
+        short_intro=short_intro.strip(), source=source, cv_filename=filename or stored, cv_path=stored, cv_text=text))
     repository.add_activity(session, applicant.id, "Applied through the careers site")
     session.commit()
     # Saved before emailing: the application stands even if the confirmation mail fails.
@@ -52,9 +52,11 @@ def apply(session: Session, job_id: int, name: str, email: str, phone: str, file
     session.refresh(applicant)
     return applicant
 
-def list_for_board(session: Session, job_id: int | None, archived: bool = False) -> list[dict]:
-    # cv_text can be long; the board only needs the card fields.
-    return [a.model_dump(exclude={"cv_text", "cv_path"}) for a in repository.list_by_job(session, job_id, archived)]
+def list_for_board(session: Session, job_id: int | None, archived: bool = False, q: str = "",
+                   priority_min: int | None = None, tag: str = "") -> list[dict]:
+    # cv_text can be long (searched in SQL, not sent); the board only needs the card fields.
+    applicants = repository.list_by_job(session, job_id, archived, q, priority_min, tag)
+    return [a.model_dump(exclude={"cv_text", "cv_path"}) for a in applicants]
 
 def detail(session: Session, applicant_id: int) -> dict:
     applicant = get(session, applicant_id)
@@ -62,7 +64,14 @@ def detail(session: Session, applicant_id: int) -> dict:
         **applicant.model_dump(exclude={"cv_path"}),
         "activity": repository.list_activity(session, applicant_id),
         "interviews": interview_repo.list_by_applicant(session, applicant_id),
+        "other_applications": _other_applications(session, applicant),
     }
+
+def _other_applications(session: Session, applicant: Applicant) -> list[dict]:
+    # Odoo's application_count: the same person applying to other jobs (or re-applying after a refusal).
+    return [{"id": a.id, "job_id": a.job_id, "job_title": job_service.get(session, a.job_id).title,
+             "stage": a.stage, "archived": a.archived, "created_at": a.created_at}
+            for a in repository.list_same_person(session, applicant)]
 
 def change_stage(session: Session, applicant: Applicant, stage: Stage) -> None:
     """Move and log without committing, so callers can bundle it with their own change."""

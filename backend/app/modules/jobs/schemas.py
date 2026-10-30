@@ -40,3 +40,5 @@ class JobIn(BaseModel):
     salary_min: int | None = Field(None, ge=0)
     salary_max: int | None = Field(None, ge=0)
     expected_degree: str = Field("", max_length=200)
+    # None on update = keep the current list.
+    interviewer_ids: list[int] | None = Field(None, max_length=50)

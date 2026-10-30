@@ -4,7 +4,7 @@ from datetime import date
 
 from pydantic import BaseModel, Field
 
-from app.modules.applicants.models import RefuseReason, Stage
+from app.modules.applicants.models import RefuseReason, Source, Stage
 
 class StageIn(BaseModel):
     stage: Stage
@@ -19,6 +19,10 @@ class ApplicantUpdate(BaseModel):
     degree: str = Field("", max_length=200)
     salary_expected: int | None = Field(None, ge=0)
     salary_proposed: int | None = Field(None, ge=0)
+    source: Source = Source.careers_site
+    source_detail: str = Field("", max_length=200)
+    next_action: str = Field("", max_length=500)
+    next_action_due: date | None = None
 
 class RefuseIn(BaseModel):
     reason: RefuseReason

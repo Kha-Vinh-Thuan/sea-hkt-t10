@@ -34,3 +34,10 @@ class Job(SQLModel, table=True):
     salary_max: int | None = Field(default=None, ge=0)
     expected_degree: str = ""
     created_at: datetime = utc_field(default_factory=utcnow)
+
+class JobInterviewer(SQLModel, table=True):
+    """Users who usually interview for a job; the booking dialog offers them first."""
+    __tablename__ = "job_interviewer"
+
+    job_id: int = Field(foreign_key="job.id", primary_key=True)
+    user_id: int = Field(foreign_key="app_user.id", primary_key=True)

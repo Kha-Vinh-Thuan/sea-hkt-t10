@@ -18,6 +18,20 @@ class Stage(StrEnum):
     hired = "hired"
     rejected = "rejected"
 
+# Odoo rotting_threshold_days, simplified: days in a stage before the card counts as stuck. None = never.
+# ASSUMPTION: thresholds not in a product spec yet.
+STUCK_AFTER_DAYS: dict[Stage, int | None] = {
+    Stage.new: 3, Stage.screening: 5, Stage.interview: 7, Stage.offer: 5, Stage.hired: None, Stage.rejected: None,
+}
+
+class Source(StrEnum):
+    # Odoo UTM source, simplified to one fixed list. ASSUMPTION: list not in a product spec yet.
+    careers_site = "careers_site"
+    linkedin = "linkedin"
+    referral = "referral"
+    job_board = "job_board"
+    other = "other"
+
 class RefuseReason(StrEnum):
     # Same list as Odoo's refuse wizard.
     does_not_fit = "does_not_fit"
@@ -45,11 +59,16 @@ class Applicant(SQLModel, table=True):
     tags: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     available_from: date | None = None
     degree: str = ""
+    # ASSUMPTION: gross per month in VND, same unit as the job salary range.
     salary_expected: int | None = None
     salary_proposed: int | None = None
     archived: bool = False  # hidden from the board; restore puts it back in `new`
     refuse_reason: RefuseReason | None = None
     refused_at: datetime | None = utc_field(default=None)
+    source: Source = Source.careers_site
+    source_detail: str = ""  # free text, e.g. the referrer's name
+    next_action: str = ""    # recruiter's next step (Odoo mail.activity, simplified)
+    next_action_due: date | None = None
     stage_changed_at: datetime = utc_field(default_factory=utcnow)
     created_at: datetime = utc_field(default_factory=utcnow)
 

@@ -11,6 +11,7 @@ from app.modules.applicants.models import Stage
 from app.modules.jobs import repository
 from app.modules.jobs.models import Job
 from app.modules.jobs.schemas import JobIn
+from app.modules.users import service as user_service
 from app.utils.errors import Invalid, NotFound
 
 
@@ -49,7 +50,9 @@ def list_open(session: Session) -> list[Job]:
 def list_with_counts(session: Session) -> list[dict]:
     counts = applicant_repo.count_by_job(session)
     hired = applicant_repo.count_by_job(session, Stage.hired)
-    return [{**job.model_dump(), "applicant_count": counts.get(job.id, 0), "hired_count": hired.get(job.id, 0)}
+    interviewers = repository.interviewer_ids(session)
+    return [{**job.model_dump(), "applicant_count": counts.get(job.id, 0), "hired_count": hired.get(job.id, 0),
+             "interviewer_ids": interviewers.get(job.id, [])}
             for job in repository.list_all(session)]
 
 
@@ -60,13 +63,29 @@ def check_ranges(data: JobIn) -> None:
         raise Invalid("Maximum salary must be at least the minimum salary")
 
 
-def create(session: Session, data: JobIn) -> Job:
+def create(session: Session, data: JobIn) -> dict:
     check_ranges(data)
-    return repository.save(session, Job.model_validate(data))
+    interviewer_ids = user_service.check_active_ids(session, data.interviewer_ids or [])
+    job = Job.model_validate(data.model_dump(exclude={"interviewer_ids"}))
+    session.add(job)
+    session.flush()  # assigns job.id for the link rows
+    repository.set_interviewers(session, job.id, interviewer_ids)
+    return _saved(session, job)
 
 
-def update(session: Session, job_id: int, data: JobIn) -> Job:
+def update(session: Session, job_id: int, data: JobIn) -> dict:
     check_ranges(data)
     job = get(session, job_id)
-    job.sqlmodel_update(data.model_dump())
-    return repository.save(session, job)
+    if data.interviewer_ids is not None:
+        repository.set_interviewers(session, job.id, user_service.check_active_ids(session, data.interviewer_ids))
+    job.sqlmodel_update(data.model_dump(exclude={"interviewer_ids"}))
+    return _saved(session, job)
+
+
+def interviewer_ids(session: Session, job_id: int) -> list[int]:
+    return repository.interviewer_ids(session).get(job_id, [])
+
+
+def _saved(session: Session, job: Job) -> dict:
+    job = repository.save(session, job)
+    return {**job.model_dump(), "interviewer_ids": interviewer_ids(session, job.id)}

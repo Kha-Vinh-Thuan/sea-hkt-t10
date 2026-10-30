@@ -81,7 +81,7 @@ function JobList() {
       {!shown.length && <Typography color="text.secondary">No jobs match these filters.</Typography>}
       {shown.map((job) => (
         <Card key={job.id} variant="outlined">
-          <CardActionArea href={`/careers/${job.id}`}>
+          <CardActionArea href={`/careers/${job.id}${window.location.search}`}>
             <CardContent>
               <Typography variant="h6" fontWeight={700} gutterBottom>{job.title}</Typography>
               <JobMeta job={job} />

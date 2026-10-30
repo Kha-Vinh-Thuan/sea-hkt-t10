@@ -16,14 +16,20 @@ from app.modules.interviews.models import Interview, InterviewStatus
 from app.modules.interviews.schemas import FeedbackIn, InterviewIn
 from app.modules.jobs import service as job_service
 from app.modules.jobs.models import Job
-from app.utils.errors import Conflict, Invalid, NotFound
+from app.modules.users.models import Role, User
+from app.utils.errors import Conflict, Forbidden, Invalid, NotFound
 from app.utils.time import as_utc, utcnow
 
 # Booking an interview moves early-stage applicants forward; later stages (offer, hired...) stay put.
 STAGES_BEFORE_INTERVIEW = {Stage.new, Stage.screening}
 
-def upcoming(session: Session) -> list[dict]:
-    rows = repository.list_upcoming(session, utcnow())
+def upcoming(session: Session, user: User | None = None) -> list[dict]:
+    """Staff (or no user, e.g. an agent): every upcoming interview. Interviewer: only their own."""
+    if user and user.role == Role.interviewer:
+        # ASSUMPTION: interviewers also see their past interviews, else they could not reach one to give feedback.
+        rows = repository.list_upcoming(session, None, interviewer_email=user.email)
+    else:
+        rows = repository.list_upcoming(session, utcnow())
     return [{**i.model_dump(), "applicant_name": a.name, "job_title": j.title} for i, a, j in rows]
 
 def schedule(session: Session, applicant_id: int, data: InterviewIn) -> dict:
@@ -61,8 +67,10 @@ def cancel(session: Session, interview_id: int) -> dict:
     applicant_repo.add_activity(session, applicant.id, f"Interview {_when(interview.start)} cancelled")
     return _save_and_email(session, applicant, job, interview, "CANCEL")
 
-def record_feedback(session: Session, interview_id: int, data: FeedbackIn) -> Interview:
+def record_feedback(session: Session, interview_id: int, data: FeedbackIn, user: User | None = None) -> Interview:
     interview = _get(session, interview_id)
+    if user and user.role == Role.interviewer and interview.interviewer_email.lower() != user.email.lower():
+        raise Forbidden("You can only give feedback on your own interviews")
     if data.status not in (InterviewStatus.done, InterviewStatus.no_show):
         raise Invalid("Feedback status must be done or no_show")
     if interview.status == InterviewStatus.cancelled:

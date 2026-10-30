@@ -5,6 +5,9 @@ class ServiceError(Exception):
     status_code = 400
 
 
+class Forbidden(ServiceError):
+    status_code = 403
+
 class NotFound(ServiceError):
     status_code = 404
 

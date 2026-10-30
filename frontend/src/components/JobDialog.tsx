@@ -1,9 +1,9 @@
 // Dialog to create a job position, or edit one when `job` is given.
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import {
   Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, Switch, TextField,
 } from '@mui/material'
-import { api, EMPLOYMENT_LABEL, type EmploymentType, type Job } from '../api'
+import { api, EMPLOYMENT_LABEL, type EmploymentType, type Job, type UserBrief } from '../api'
 
 // Parent passes a fresh `key` per job, so the uncontrolled inputs pick up the new defaults.
 type Props = { open: boolean; job?: Job; onClose: () => void; onSaved: (job: Job) => void }
@@ -11,6 +11,13 @@ type Props = { open: boolean; job?: Job; onClose: () => void; onSaved: (job: Job
 export default function JobDialog({ open, job, onClose, onSaved }: Props) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [users, setUsers] = useState<UserBrief[]>([])
+  const [interviewerIds, setInterviewerIds] = useState<number[]>(job?.interviewer_ids ?? [])
+
+  useEffect(() => {
+    if (open) api.users().then(setUsers).catch((e: Error) => setError(e.message))
+  }, [open])
+  const userLabel = (id: number) => { const u = users.find((x) => x.id === id); return u ? u.name || u.email : `#${id}` }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -33,6 +40,7 @@ export default function JobDialog({ open, job, onClose, onSaved }: Props) {
       salary_min: numberOrNull('salary_min'),
       salary_max: numberOrNull('salary_max'),
       expected_degree: text('expected_degree'),
+      interviewer_ids: interviewerIds,
     }
     setBusy(true)
     setError('')
@@ -90,6 +98,12 @@ export default function JobDialog({ open, job, onClose, onSaved }: Props) {
               <TextField name="openings" label="Openings" type="number" defaultValue={job?.openings ?? 1} required fullWidth
                 slotProps={{ htmlInput: { min: 0 } }} />
             </Stack>
+            <TextField label="Interviewers" select fullWidth value={interviewerIds}
+              helperText="Offered first when booking an interview for this job"
+              onChange={(e) => setInterviewerIds(e.target.value as unknown as number[])}
+              slotProps={{ select: { multiple: true, renderValue: (ids) => (ids as number[]).map(userLabel).join(', ') } }}>
+              {users.map((u) => <MenuItem key={u.id} value={u.id}>{u.name || u.email} ({u.email})</MenuItem>)}
+            </TextField>
             <FormControlLabel control={<Switch name="is_open" defaultChecked={job?.is_open ?? true} />}
               label="Published on careers site" />
             {error && <Alert severity="error">{error}</Alert>}

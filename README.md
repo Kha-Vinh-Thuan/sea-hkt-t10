@@ -12,8 +12,10 @@ React + Vite + MUI (5173) --/api--> FastAPI (8000) --> Postgres "hr" (5432)
 | Page | Who | What |
 |---|---|---|
 | `/careers`, `/careers/:id` | Public | Jobs inside their open/close dates, filters (department, location, type, remote), apply form (CV PDF/DOCX/TXT max 5 MB, LinkedIn, short intro) |
-| `/` | Recruiter (login) | Pipeline by stage; create / edit jobs (dates, type, salary, hired / target); applicant panel: CV, stars, tags, notes, salaries, refuse with reason, archive / restore, interviews, activity |
+| `/` | Recruiter (login) | Pipeline by stage with search, filters, drag-and-drop, archived view; create / edit jobs (dates, type, salary, hired / target); applicant panel: CV, stars, tags, notes, salaries, refuse with reason, archive / restore, interviews, activity |
 | `/` → Interviews | Recruiter | Upcoming interviews with status |
+| `/` → Users | Admin | Create users (admin / recruiter / interviewer), edit role, deactivate, reset password |
+| `/` | Interviewer | Only their own interviews, with the Feedback action |
 
 Interviews: length comes from the job, past times and interviewer double-booking are rejected, early-stage
 applicants move to `interview`, candidate and interviewer get an `.ics` invite. Reschedule and cancel send an
@@ -54,7 +56,7 @@ docker compose up -d                       # Postgres + Mailpit
 cd backend
 python -m venv .venv && source .venv/Scripts/activate
 pip install -r requirements.txt
-cp .env.example .env                       # set SECRET_KEY and RECRUITER_PASSWORD
+cp .env.example .env                       # set SECRET_KEY and RECRUITER_PASSWORD (first admin)
 python -m pytest -q                        # SQLite in memory, mail stubbed
 python -m app.seed                         # runs migrations, then 3 demo jobs (skips if jobs exist)
 uvicorn app.main:app --reload --port 8000

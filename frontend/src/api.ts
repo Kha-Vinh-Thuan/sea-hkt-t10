@@ -34,9 +34,24 @@ export type Job = PublicJob & {
   is_open: boolean
   applicant_count: number
   hired_count: number
+  interviewer_ids: number[]
 }
 
 export type JobInput = Omit<Job, 'id' | 'applicant_count' | 'hired_count'>
+
+// Where the applicant came from (Odoo UTM source, simplified). Careers links can carry it: /careers/1?source=linkedin
+export type Source = 'careers_site' | 'linkedin' | 'referral' | 'job_board' | 'other'
+
+export const SOURCE_LABEL: Record<Source, string> = {
+  careers_site: 'Careers site', linkedin: 'LinkedIn', referral: 'Referral', job_board: 'Job board', other: 'Other',
+}
+
+export type Role = 'admin' | 'recruiter' | 'interviewer'
+export const ROLE_LABEL: Record<Role, string> = { admin: 'Admin', recruiter: 'Recruiter', interviewer: 'Interviewer' }
+export type UserBrief = { id: number; name: string; email: string; role: Role }
+export type User = UserBrief & { is_active: boolean; created_at: string }
+export type UserInput = { email: string; name: string; role: Role; password: string }
+export type UserUpdate = Partial<Pick<User, 'name' | 'role' | 'is_active'>>
 
 export type Applicant = {
   id: number
@@ -60,6 +75,24 @@ export type Applicant = {
   refuse_reason: RefuseReason | null
   refused_at: string | null
   stage_changed_at: string
+  source: Source
+  source_detail: string
+  next_action: string
+  next_action_due: string | null // YYYY-MM-DD
+}
+
+// Mirror of the backend's STUCK_AFTER_DAYS (GET /api/stage-rules); null = never stuck.
+export const STUCK_AFTER_DAYS: Record<Stage, number | null> = {
+  new: 3, screening: 5, interview: 7, offer: 5, hired: null, rejected: null,
+}
+
+// Whole days since the applicant entered the current stage.
+export const daysInStage = (a: Pick<Applicant, 'stage_changed_at'>) =>
+  Math.floor((Date.now() - Date.parse(a.stage_changed_at)) / 86_400_000)
+
+export function isStuck(a: Pick<Applicant, 'stage' | 'stage_changed_at'>) {
+  const limit = STUCK_AFTER_DAYS[a.stage]
+  return limit !== null && daysInStage(a) >= limit
 }
 
 export type RefuseReason = 'does_not_fit' | 'refused_job_fit' | 'refused_salary' | 'job_filled' | 'duplicate' | 'spam'
@@ -73,9 +106,16 @@ export const REFUSE_REASON_LABEL: Record<RefuseReason, string> = {
   spam: 'Spam',
 }
 
+// GET /refuse-reasons: the backend owns both the list and its labels.
+export type RefuseReasonOption = { value: RefuseReason; label: string }
+
+// Optional board filters for GET /applicants; empty values are left out of the query string.
+export type ApplicantFilters = { q?: string; priority_min?: number; tag?: string; archived?: boolean }
+
 // Fields the recruiter edits in the side panel (PATCH /applicants/{id}).
 export type ApplicantUpdate = Pick<Applicant,
-  'notes' | 'priority' | 'tags' | 'linkedin' | 'available_from' | 'degree' | 'salary_expected' | 'salary_proposed'>
+  'notes' | 'priority' | 'tags' | 'linkedin' | 'available_from' | 'degree' | 'salary_expected' | 'salary_proposed'
+  | 'source' | 'source_detail' | 'next_action' | 'next_action_due'>
 
 export type Interview = {
   id: number
@@ -112,17 +152,29 @@ export type ApplicantDetail = Applicant & {
   cv_text: string
   activity: { id: number; message: string; created_at: string }[]
   interviews: Interview[]
+  other_applications: OtherApplication[]
+}
+
+// Same person (email any case, or phone) applying to another job: Odoo's "application_count".
+export type OtherApplication = {
+  id: number; job_id: number; job_title: string; stage: Stage; archived: boolean; created_at: string
 }
 
 export type InterviewInput = { start: string; interviewer_name: string; interviewer_email: string; location: string }
 
 // ponytail: token in localStorage is fine for a localhost demo; move to an httpOnly cookie before going public.
 const TOKEN_KEY = 'hr_token'
+const USER_KEY = 'hr_user'
 
+// The stored user only picks the screen; the server re-checks the role on every call.
 export const session = {
   token: () => { try { return localStorage.getItem(TOKEN_KEY) } catch { return null } },
-  save: (token: string) => { try { localStorage.setItem(TOKEN_KEY, token) } catch { /* private mode */ } },
-  clear: () => { try { localStorage.removeItem(TOKEN_KEY) } catch { /* private mode */ } },
+  user: (): UserBrief | null => { try { return JSON.parse(localStorage.getItem(USER_KEY) ?? 'null') } catch { return null } },
+  save: (token: string, user: UserBrief) => {
+    try { localStorage.setItem(TOKEN_KEY, token); localStorage.setItem(USER_KEY, JSON.stringify(user)) } catch { /* private mode */ }
+  },
+  saveUser: (user: UserBrief) => { try { localStorage.setItem(USER_KEY, JSON.stringify(user)) } catch { /* private mode */ } },
+  clear: () => { try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY) } catch { /* private mode */ } },
 }
 
 export class UnauthorizedError extends Error {}
@@ -157,13 +209,24 @@ export const api = {
   apply: (id: number, form: FormData) => request<{ id: number }>(`/public/jobs/${id}/apply`, { method: 'POST', body: form }),
 
   login: (email: string, password: string) =>
-    request<{ token: string; email: string }>('/auth/login', json('POST', { email, password })),
+    request<{ token: string; email: string; user: UserBrief }>('/auth/login', json('POST', { email, password })),
+  me: () => request<UserBrief>('/auth/me'),
+  users: (role?: Role) => request<UserBrief[]>(`/users${role ? `?role=${role}` : ''}`),
+  adminUsers: () => request<User[]>('/admin/users'),
+  createUser: (data: UserInput) => request<User>('/admin/users', json('POST', data)),
+  updateUser: (id: number, data: UserUpdate) => request<User>(`/admin/users/${id}`, json('PATCH', data)),
+  resetPassword: (id: number, password: string) => request<User>(`/admin/users/${id}/password`, json('POST', { password })),
 
   jobs: () => request<Job[]>('/jobs'),
   createJob: (job: JobInput) => request<Job>('/jobs', json('POST', job)),
   updateJob: (id: number, job: JobInput) => request<Job>(`/jobs/${id}`, json('PUT', job)),
   stages: () => request<Stage[]>('/stages'),
-  applicants: (jobId: number) => request<Applicant[]>(`/applicants?job_id=${jobId}`),
+  applicants: (jobId: number, filters: ApplicantFilters = {}) => {
+    const params = new URLSearchParams({ job_id: String(jobId) })
+    for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') params.set(key, String(value))
+    return request<Applicant[]>(`/applicants?${params}`)
+  },
+  refuseReasons: () => request<RefuseReasonOption[]>('/refuse-reasons'),
   applicant: (id: number) => request<ApplicantDetail>(`/applicants/${id}`),
   moveStage: (id: number, stage: Stage) => request<Applicant>(`/applicants/${id}/stage`, json('PATCH', { stage })),
   updateApplicant: (id: number, data: Partial<ApplicantUpdate>) =>

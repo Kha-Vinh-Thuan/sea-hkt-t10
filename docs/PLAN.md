@@ -17,7 +17,7 @@ Update in place as work moves. Section 3 tracks progress.
 | Fixed stages in code: new → screening → interview → offer → hired / rejected | No admin screen needed for an MVP |
 | Interview invite = email with `.ics` | Gmail/Outlook add it to the calendar with no OAuth. Google Calendar sync later |
 | Mailpit in docker-compose for dev mail | Invitations can be tested without reaching real inboxes |
-| One recruiter account from `.env`, HMAC-signed token | Enough for a localhost demo, no user table yet |
+| Users table with roles admin / recruiter / interviewer; first admin created from `RECRUITER_EMAIL` / `RECRUITER_PASSWORD` on first login; HMAC-signed token, user reloaded on every request | No new dependency (stdlib scrypt); old `.env` keeps working; deactivation applies at once |
 | No inbound mail (CV by email to an alias) | Needs a real mailbox and domain; the public apply form replaces it |
 
 ## 2. Gap vs Odoo
@@ -40,7 +40,7 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 | `employee_type_id` (full-time, intern...) | yes | done (#19) |
 | `salary_min`, `salary_max`, `payment_interval` | salary range, monthly VND | done (#19); payment interval dropped (always monthly) |
 | `expected_degree` | yes | done (#19, plain text) |
-| `recruiter_id`, `manager_id`, `interviewer_ids` | none | #13 + #14 (needs users) |
+| `recruiter_id`, `manager_id`, `interviewer_ids` | interviewers per job (`job_interviewer`) | done (#14); recruiter / manager per job: later |
 | `tag_ids` (job tags) | none | later |
 | `website_description`, `job_details` (rich public page) | plain text description | later: Markdown rendering |
 | `survey_id` (interview form per job) | yes | done (#21, own scorecard instead of a survey) |
@@ -61,22 +61,22 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 | `categ_ids` (tags) | yes | done (#20) |
 | `linkedin_profile`, `availability` (start date) | yes | done (#20) |
 | `type_id` (degree) | yes | done (#20, plain text) |
-| `salary_expected`, `salary_proposed` (+ extra) | yes | done (#20) |
+| `salary_expected`, `salary_proposed` (+ extra) | two numbers, monthly VND (assumption, see section 4) | done (#20); "extra" text fields dropped |
 | `refuse_reason_id`, `refuse_date`, refuse email template | yes | done (#16) |
 | refuse wizard: reason list (does not fit, refused by applicant: job fit / salary, job filled, duplicate, spam), optional mail | yes | done (#16: same reason list, mail optional) |
 | mail templates: refuse, interest, congratulations (hired), not interested | yes | done (#16 refuse; #22 interest + congratulations); "not interested" template: later |
-| `archive_applicant` / `reset_applicant` (restore to first stage) | yes | done (#20) |
+| `archive_applicant` / `reset_applicant` (restore to first stage) | archive / restore buttons; API `?archived=true` | done (#20); board "Show archived" view (#24) |
 | `action_job_add_applicants` (copy applicant to another job) | none | later |
-| scheduled activities (to-do with deadline and owner, `mail.activity`) | none | later: "next step + due date" on applicant |
+| scheduled activities (to-do with deadline and owner, `mail.activity`) | `next_action` + `next_action_due`, overdue chip | done (#27); owner per to-do: later |
 | attachments other than the CV (`attachment_ids`) | one CV | later |
 | `application_status` (ongoing / hired / refused / archived), `active` | yes | done (#20: archive flag) |
-| `kanban_state` (blocked / ready), stage `rotting_threshold_days` | none | later: "stuck for N days" badge |
-| `recruiter_id`, `interviewer_ids` per applicant | none | #13 + #14 |
+| `kanban_state` (blocked / ready), stage `rotting_threshold_days` | stuck-after-days per stage (`GET /api/stage-rules`), badge on cards + drawer | done (#27); blocked / ready flag dropped |
+| `recruiter_id`, `interviewer_ids` per applicant | interviewer per interview, picked from the job's list | done (#14); recruiter owner per applicant: later |
 | `date_closed` (hire date), days to open / close, delay | none | later: simple reporting |
-| duplicates by email / phone (`application_count`) | duplicate blocked per job only | later: "also applied to" in the panel |
+| duplicates by email / phone (`application_count`) | "Also applied to" in the panel (same email any case, or same phone) | done (#27) |
 | `skill_ids`, matching / missing skills, `matching_score` | CV text only | later: the Filter agent produces the score |
 | talent pool (`talent_pool_ids`) | none | later |
-| source / medium / campaign (UTM) | none | later: one `source` text field |
+| source / medium / campaign (UTM) | `source` (careers site, LinkedIn, referral, job board, other) + detail; `?source=` on careers links | done (#27); medium / campaign dropped |
 | `employee_id` (create employee on hire) | none | dropped: we stop at hired, no HR core |
 | SMS (`hr_recruitment_sms`) | none | dropped: email only |
 | `probability`, color, sequence, properties | none | dropped |
@@ -104,7 +104,7 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 
 | Odoo | Here | Decision |
 |---|---|---|
-| users, groups (officer / manager / interviewer) | one recruiter from `.env` | #13 |
+| users, groups (officer / manager / interviewer) | users table, roles admin / recruiter / interviewer, Users page | done (#13) |
 | inbound mail gateway (CV to an alias) | public apply form | dropped: needs a real mailbox and domain |
 | reporting, digest emails | none | later |
 | multi-language website, i18n | English UI | dropped |
@@ -134,9 +134,9 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 | 10 | Edit job screen (API `PUT /api/jobs/{id}` exists, UI missing) | done |
 | 11 | Reschedule / cancel interview (update + cancel `.ics` with same UID) | done |
 | 12 | Migrations with Alembic: `migrations/`, revision 0001 = current schema, app upgrades on startup, test checks models == migrations | done |
-| 13 | Users table: several recruiters/interviewers, hashed passwords, roles | todo |
-| 14 | Interviewer list per job (pick from users instead of typing an email) | todo |
-| 15 | Search / filter applicants, drag-and-drop between stages | todo |
+| 13 | Users table: several recruiters/interviewers, hashed passwords, roles | done |
+| 14 | Interviewer list per job (pick from users instead of typing an email) | done |
+| 15 | Search / filter applicants, drag-and-drop between stages | done |
 | 16 | Rejection email to candidates | done |
 | 17 | Google Calendar: read interviewer busy times (freebusy), create event with Meet link | later |
 | 18 | Hook for jobhunter-platform agents: expose services as the provider the agents call | later, after harness specs |
@@ -145,26 +145,60 @@ Decision: **done**, **#N** (planned, see section 3), **later** (wanted, after th
 | 21 | Interview scorecard: score, verdict, notes per interview; status done / no-show | done |
 | 22 | Candidate emails: interest (after apply) and congratulations (hired) | done |
 | 23 | Careers site: filters (department, location, remote, type); apply form adds LinkedIn + short introduction | done |
+| 24 | Board: "Show archived" view (API `GET /api/applicants?archived=true` exists; needs its own column or list) | done |
+| 25 | Refuse dialog reads reasons from `GET /api/refuse-reasons` instead of its own label list | done |
+| 26 | Recruiter screens clicked through in a browser: login, board, drag-and-drop (incl. drop on Rejected → Refuse dialog), drawer, Users page, interviewer view | done |
+| 27 | Applicant extras: source, "also applied to", stuck-in-stage badge, next step + due date | done |
+| 28 | Edit job / reschedule / feedback dialogs clicked through in a browser (checked through the API so far) | todo |
+| 29 | Frontend reads stuck thresholds from `GET /api/stage-rules` instead of its own copy in `api.ts` | todo |
+| 30 | Drawer shows refuse labels from the API (`REFUSE_REASON_LABEL` still duplicated in `api.ts`) | todo |
+| 31 | Login rate limit (now that there are several accounts) | todo |
 
 #10, #11, #16, #19–#23 were built in parallel by three agents (jobs / applicants / interviews), then merged with one
-migration (`0002`) and reviewed: shared SMTP code merged into `send_mail`, hired count moved to a query.
+migration (`0002`). #13–#15, #24–#27 the same way (users / board / applicant extras), migration `0003`.
+Review fixes: shared SMTP code merged into `send_mail`, hired count as a query, merge conflicts in `api.ts` and the
+applicants repository, duplicate Sign out button removed.
 
-Next: #13 users + roles, then #14 interviewer list, #15 search / drag-and-drop. "later" rows of section 2 after that.
+Next: #28–#31 (small), then the "later" rows of section 2, then #17 / #18.
 
-Verified 2026-10-30: 26 backend tests pass (API, services, applicant actions, interviews, migrations);
-frontend build and lint clean; migration 0002 upgraded / downgraded / upgraded on Postgres with existing rows;
-live run on Postgres + Mailpit: apply (interest mail) → edit fields → book → reschedule (same UID, SEQUENCE 1)
-→ cancel (METHOD:CANCEL) → stage PATCH to rejected refused (422) → refuse with reason (refusal mail).
+Verified 2026-10-30: 40 backend tests pass; frontend build and lint clean; migrations 0002 and 0003 upgraded /
+downgraded / upgraded on Postgres with existing rows. Live on Postgres + Mailpit: apply → interest mail → book →
+reschedule (same UID) → cancel (METHOD:CANCEL) → refuse with reason. Roles: bootstrap admin from `.env`, interviewer
+sees only own interviews, gets 403 on applicants and admin routes, deactivated token 401, self-demote 409.
+Browser: board drag-and-drop saved, drop on Rejected opens Refuse, drawer shows source and "also applied to",
+Users page, interviewer view.
 
 ## 4. Known limits (accepted for the demo)
 
-- Recruiter API is protected by one shared account. Do not expose beyond localhost.
+- No login rate limit yet (#31). Do not expose beyond localhost.
 - Token is stored in `localStorage`. Move to an httpOnly cookie before going public.
 - No rate limit on login or apply.
 - Upload folder is local disk (`backend/uploads/`, gitignored). Use object storage if deployed.
 - Times are stored in UTC; display uses the browser's timezone, emails use `TIMEZONE` from `.env`.
 
-## 5. How to run
+## 5. Assumptions to confirm
+
+Made while building without a product spec. Change them in one place if the spec says otherwise.
+
+| Assumption | Where |
+|---|---|
+| Salaries (job range, expected, proposed) are gross monthly VND, whole numbers | `modules/jobs/models.py`, `modules/applicants/models.py` |
+| A job's close date is inclusive, in the company timezone (`TIMEZONE`) | `modules/jobs/service.py` |
+| The recruiter job list shows every job, including closed and out-of-window ones | `modules/jobs/service.py` |
+| Restore works on any refused or archived applicant and sends it back to `new` | `modules/applicants/service.py` |
+| Refusing an archived applicant is allowed; archive / restore send no email | `modules/applicants/service.py` |
+| "Send refusal email" is ticked by default in the Refuse dialog | `components/RefuseDialog.tsx` |
+| Congratulations email only on the move into `hired`, not when already hired | `modules/applicants/service.py` |
+| Interview feedback can be re-submitted (overwrites); recording it sends no email | `modules/interviews/service.py` |
+| A no-show may still keep a score if one is sent (the UI only sends it for done) | `modules/interviews/service.py` |
+| Wrong interview status (not scheduled / cancelled) returns 409; bad input returns 422 | `modules/interviews/service.py` |
+| Passwords at least 8 characters | `modules/users/schemas.py` |
+| Interviewers see their past interviews too (to give feedback); matched to interviews by email, any case | `modules/interviews/service.py` |
+| Any active user (any role) can be a job interviewer | `modules/jobs/service.py` |
+| Applicant source list: careers site, LinkedIn, referral, job board, other | `modules/applicants/models.py` |
+| Stuck after N days: new 3, screening 5, interview 7, offer 5 | `modules/applicants/models.py` |
+
+## 6. How to run
 
 See the root `README.md`. In short: `docker compose up -d`, then `uvicorn app.main:app --reload --port 8000`
 in `backend/`, then `npm run dev` in `frontend/`. Invitations show up at http://localhost:8025.

@@ -1,8 +1,8 @@
 // Book an interview for one applicant, or reschedule one (pass `interview` to prefill). Length comes from the job;
-// the server checks the time and clashes.
-import { useState, type FormEvent } from 'react'
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField } from '@mui/material'
-import { api, type Interview } from '../api'
+// the server checks the time and clashes. The interviewer is picked from the job's list or typed in for outsiders.
+import { useEffect, useState, type FormEvent } from 'react'
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from '@mui/material'
+import { api, type Interview, type UserBrief } from '../api'
 
 type Props = {
   applicantId: number
@@ -21,6 +21,30 @@ function toLocalInput(iso: string) {
 export default function InterviewDialog({ applicantId, interview, open, onClose, onBooked }: Props) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [choices, setChoices] = useState<UserBrief[]>([])
+  const [name, setName] = useState(interview?.interviewer_name ?? '')
+  const [email, setEmail] = useState(interview?.interviewer_email ?? '')
+
+  // The job's interviewer list, or every active user when the job has none. Typed name/email = "Other".
+  useEffect(() => {
+    if (!open) return
+    // The dialog stays mounted between openings, so start each one from the interview (or blank).
+    setName(interview?.interviewer_name ?? '')
+    setEmail(interview?.interviewer_email ?? '')
+    Promise.all([api.applicant(applicantId), api.jobs(), api.users()])
+      .then(([applicant, jobs, users]) => {
+        const ids = jobs.find((j) => j.id === applicant.job_id)?.interviewer_ids ?? []
+        setChoices(ids.length ? users.filter((u) => ids.includes(u.id)) : users)
+      })
+      .catch((e: Error) => setError(e.message))
+  }, [open, applicantId, interview])
+
+  const picked = choices.find((u) => u.email.toLowerCase() === email.trim().toLowerCase())
+  function pick(value: string) {
+    const user = choices.find((u) => String(u.id) === value)
+    setName(user ? user.name : '')
+    setEmail(user ? user.email : '')
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -55,9 +79,14 @@ export default function InterviewDialog({ applicantId, interview, open, onClose,
           <Stack spacing={2} sx={{ pt: 1 }}>
             <TextField name="start" label="Start" type="datetime-local" required slotProps={{ inputLabel: { shrink: true } }}
               defaultValue={interview && toLocalInput(interview.start)} />
-            <TextField name="interviewer_name" label="Interviewer name" defaultValue={interview?.interviewer_name} />
+            <TextField label="Interviewer" select value={picked ? String(picked.id) : 'other'}
+              onChange={(e) => pick(e.target.value)}>
+              {choices.map((u) => <MenuItem key={u.id} value={String(u.id)}>{u.name || u.email} ({u.email})</MenuItem>)}
+              <MenuItem value="other">Other (type below)</MenuItem>
+            </TextField>
+            <TextField name="interviewer_name" label="Interviewer name" value={name} onChange={(e) => setName(e.target.value)} />
             <TextField name="interviewer_email" label="Interviewer email" type="email" required
-              defaultValue={interview?.interviewer_email} />
+              value={email} onChange={(e) => setEmail(e.target.value)} />
             <TextField name="location" label="Meeting link or room" placeholder="https://meet.google.com/…"
               defaultValue={interview?.location} />
             {error && <Alert severity="error">{error}</Alert>}

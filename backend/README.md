@@ -25,11 +25,14 @@ app/
       emails.py              candidate email texts (received, refusal, congratulations)
     interviews/            book / reschedule / cancel (.ics with stable UID), feedback scorecard
       controller.py  service.py  repository.py  models.py  schemas.py
-    auth/                  recruiter login
-      controller.py          POST /api/auth/login
-      service.py             token signing, credential check
-      dependencies.py        require_recruiter, used by other modules' routes
+    auth/                  login + token
+      controller.py          POST /api/auth/login, GET /api/auth/me
+      service.py             token signing (user id + role), reloads the user on every request
+      dependencies.py        require_user / require_recruiter (admin or recruiter) / require_admin
       schemas.py
+    users/                 accounts and roles (admin | recruiter | interviewer)
+      controller.py  service.py  repository.py  models.py  schemas.py
+      passwords.py           stdlib scrypt hash + constant-time verify
   integrations/            outside systems, called by services
     cv.py                    save CV file, extract text (PDF/DOCX/TXT)
     mail.py                  SMTP send_mail (optional .ics attachment), build_ics
@@ -46,6 +49,17 @@ tests/
   test_services.py         services directly, no HTTP
   test_migrations.py       migrations == models (fails if you forgot a revision)
 ```
+
+## Users and roles
+
+On the first login, if the `app_user` table is empty, an admin is created from `RECRUITER_EMAIL` / `RECRUITER_PASSWORD`
+(so an existing `.env` keeps working). After that the env pair is ignored; the admin manages users in the Users tab.
+
+| Role | Can |
+|---|---|
+| admin | everything, plus `/api/admin/users` (create, edit name/role/active, reset password); cannot demote or deactivate self or the last admin |
+| recruiter | jobs, applicants, interviews, `GET /api/users?role=` (pickers) |
+| interviewer | `GET /api/interviews` (own, matched by email) and feedback on own interviews; nothing else (403) |
 
 ## Rules of thumb
 

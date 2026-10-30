@@ -18,6 +18,9 @@ export default function ApplyForm({ jobId }: { jobId: number }) {
     if (file.size > MAX_MB * 1024 * 1024) return setError(`CV must be ${MAX_MB} MB or smaller.`)
     const form = new FormData(event.currentTarget)
     form.set('cv', file)
+    // ?source=linkedin on the careers link says where the candidate came from; the server rejects unknown values.
+    const source = new URLSearchParams(window.location.search).get('source')
+    if (source) form.set('source', source)
     setBusy(true)
     setError('')
     try {

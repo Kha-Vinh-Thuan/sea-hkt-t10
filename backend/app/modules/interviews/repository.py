@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from app.modules.applicants.models import Applicant
 from app.modules.interviews.models import Interview, InterviewStatus
@@ -25,14 +25,19 @@ def find_clash(session: Session, interviewer_email: str, start: datetime, end: d
         query = query.where(Interview.id != exclude_id)
     return session.exec(query).first()
 
-def list_upcoming(session: Session, now: datetime) -> list[tuple[Interview, Applicant, Job]]:
-    return list(session.exec(
-        select(Interview, Applicant, Job)
-        .join(Applicant, Interview.applicant_id == Applicant.id)
-        .join(Job, Applicant.job_id == Job.id)
-        .where(Interview.end >= now, Interview.status != InterviewStatus.cancelled)
-        .order_by(Interview.start)
-    ).all())
+def list_upcoming(session: Session, now: datetime | None,
+                  interviewer_email: str | None = None) -> list[tuple[Interview, Applicant, Job]]:
+    """Active interviews ending after `now` (None = also past ones), optionally of one interviewer."""
+    query = (select(Interview, Applicant, Job)
+             .join(Applicant, Interview.applicant_id == Applicant.id)
+             .join(Job, Applicant.job_id == Job.id)
+             .where(Interview.status != InterviewStatus.cancelled)
+             .order_by(Interview.start))
+    if now is not None:
+        query = query.where(Interview.end >= now)
+    if interviewer_email is not None:
+        query = query.where(func.lower(Interview.interviewer_email) == interviewer_email.lower())
+    return list(session.exec(query).all())
 
 def add(session: Session, interview: Interview) -> Interview:
     session.add(interview)
