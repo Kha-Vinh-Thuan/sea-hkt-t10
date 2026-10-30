@@ -11,5 +11,12 @@ services:
       # Same volume as the old Odoo setup: its database db-hr-sys stays here for reference.
       - db-data:/var/lib/postgresql/data
 
+  # Dev mail catcher: the API sends invitations here; read them at http://localhost:8025. Nothing leaves the machine.
+  mailpit:
+    image: axllent/mailpit:v1.27.0
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   db-data:

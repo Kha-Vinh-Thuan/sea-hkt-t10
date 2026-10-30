@@ -6,7 +6,7 @@ load_dotenv()
 
 from sqlmodel import Session, select  # noqa: E402
 
-from app.db import create_tables, engine  # noqa: E402
+from app.core.db import create_tables, engine  # noqa: E402
 from app.models import Job  # noqa: E402
 
 JOBS = [
