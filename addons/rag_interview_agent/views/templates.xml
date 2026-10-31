@@ -2,81 +2,61 @@
 <odoo>
     <template id="interview_page">
         &lt;!DOCTYPE html&gt;
-        <html lang="vi">
+        <html lang="en">
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-                <title>Phỏng vấn trực tuyến</title>
+                <title>AI Interview</title>
                 <style>
-                    :root { --bg:#f7f9fc; --card:#fff; --text:#18212c; --muted:#697586; --accent:#1845f5; --border:#e1e7ef; --rec:#b3261e; }
+                    :root { --bg:#f6f7fb; --card:#fff; --text:#1f2330; --muted:#6b7080; --accent:#714b67; --border:#e3e5ec; --rec:#d23f3f; }
+                    @media (prefers-color-scheme: dark) { :root { --bg:#14151a; --card:#1d1f26; --text:#e8e9ee; --muted:#9a9eab; --accent:#c69bbb; --border:#2c2f38; } }
                     * { box-sizing: border-box; }
                     body { margin:0; font:16px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--text); }
-                    main { max-width:760px; margin:0 auto; padding:32px 16px 56px; display:flex; flex-direction:column; gap:16px; }
-                    .card { background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px; box-shadow:0 8px 28px rgba(36,29,67,.04); }
-                    .brand { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:700; color:var(--text); }
-                    .brand img { width:36px; height:36px; border-radius:11px; }
-                    h1 { font-size:26px; line-height:1.25; margin:0 0 6px; } h2 { font-size:20px; margin:0 0 12px; }
+                    main { max-width:640px; margin:0 auto; padding:24px 16px; display:flex; flex-direction:column; gap:16px; }
+                    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; }
+                    h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:16px; margin:0 0 12px; }
                     .muted { color:var(--muted); font-size:14px; } .err { color:var(--rec); }
-                    button { padding:10px 18px; border:0; border-radius:100px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
+                    button { padding:10px 18px; border:0; border-radius:10px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
                     button:disabled { opacity:.5; cursor:default; }
-                    button:focus-visible, textarea:focus-visible, input:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
                     label { display:flex; gap:8px; align-items:flex-start; margin:12px 0; }
-                    .ai { display:flex; flex-direction:column; align-items:stretch; gap:16px; padding:28px; }
-                    .question-row { display:flex; align-items:flex-start; gap:16px; }
-                    .orb { width:48px; height:48px; flex:none; border-radius:50%; background:var(--accent); opacity:.85; }
+                    .ai { display:flex; flex-direction:column; align-items:center; gap:16px; text-align:center; padding:32px 20px; }
+                    .orb { width:96px; height:96px; border-radius:50%; background:var(--accent); opacity:.85; }
                     .orb.talk { animation:pulse 1s infinite ease-in-out; }
                     .orb.listen { background:var(--rec); animation:pulse 1.6s infinite ease-in-out; }
                     @keyframes pulse { 50% { transform:scale(1.12); opacity:1; } }
                     @media (prefers-reduced-motion: reduce) { .orb.talk, .orb.listen { animation:none; } }
-                    #question { font-size:22px; line-height:1.4; min-height:48px; }
-                    #answer-draft { display:block; width:100%; min-height:120px; padding:12px; resize:vertical; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--text); font:inherit; }
-                    .stage-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-                    .step { color:var(--accent); font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
-                    @media (max-width:520px) { .ai { padding:20px; } .question-row { flex-direction:column; } .stage-actions button { width:100%; } }
+                    #question { font-size:20px; min-height:60px; }
+                    #heard { min-height:48px; color:var(--muted); font-style:italic; }
                     [hidden] { display:none !important; }
                 </style>
-                <link rel="stylesheet" href="/t10_ai_interview/static/src/css/design_system.css"/>
             </head>
-            <body class="aho-public">
+            <body>
                 <main>
-                    <div class="brand"><img src="/t10_ai_interview/static/src/img/ai-hiring-operator.svg?v=2" alt=""/>AI Hiring Operator</div>
                     <t t-if="not open">
-                        <div class="card"><h2>Đường dẫn không còn hiệu lực</h2>
-                            <p class="muted">Buổi phỏng vấn đã kết thúc hoặc đường dẫn không đúng.</p></div>
+                        <div class="card"><h2>This link is no longer valid</h2>
+                            <p class="muted">The interview has ended or the link is incorrect.</p></div>
                     </t>
                     <t t-else="">
                         <div class="card">
-                            <p class="step">Phỏng vấn trực tuyến</p>
                             <h1 t-esc="session.job_id.name"/>
                             <p class="muted" t-esc="session.company_id.name"/>
                         </div>
                         <div class="card" id="consent">
-                            <h2>Trước khi bắt đầu</h2>
-                            <p>Buổi phỏng vấn do trợ lý AI thực hiện bằng giọng nói. Giọng nói và câu trả lời của bạn được gửi tới nhà cung cấp AI (OpenAI, OpenRouter) để xử lý và được lưu lại cho đội tuyển dụng. Quyết định cuối cùng do con người đưa ra.</p>
-                            <p class="muted">Mỗi câu trả lời sẽ hiện thành bản nháp. Bạn có thể sửa nội dung trước khi bấm gửi. Hãy cho phép truy cập micro khi trình duyệt hỏi.</p>
-                            <label><input type="checkbox" id="agree"/> <span>Tôi đã hiểu và đồng ý tham gia phỏng vấn</span></label>
+                            <h2>Before you start</h2>
+                            <p>This is a voice interview run by an AI assistant. Your voice and answers are sent to AI providers (OpenAI, OpenRouter) for processing and stored for the recruiting team. The final decision is made by a human.</p>
+                            <p class="muted">Speak naturally; pause for a few seconds or press "I'm done" when you finish an answer.</p>
+                            <label><input type="checkbox" id="agree"/> <span>I understand and agree to take part in this interview</span></label>
                             <p class="err" id="blocker" role="alert"></p>
-                            <button id="start" disabled="disabled">Bật micro và bắt đầu</button>
+                            <button id="start" disabled="disabled">Turn on microphone and start</button>
                         </div>
                         <div class="card ai" id="stage" hidden="hidden">
-                            <p class="step">Câu hỏi hiện tại</p>
-                            <div class="question-row">
-                                <div class="orb" id="orb" aria-hidden="true"></div>
-                                <div id="question" aria-live="polite"></div>
-                            </div>
-                            <p class="muted" id="status" role="status" aria-live="polite"></p>
-                            <div>
-                                <label for="answer-draft">Câu trả lời của bạn</label>
-                                <textarea id="answer-draft" maxlength="4000" aria-describedby="draft-help" placeholder="Nội dung nhận diện từ giọng nói sẽ hiện ở đây. Bạn cũng có thể gõ hoặc sửa trực tiếp."></textarea>
-                                <p class="muted" id="draft-help">Kiểm tra lại nội dung trước khi gửi sang câu hỏi tiếp theo.</p>
-                            </div>
-                            <p class="err" id="stage-error" role="alert" hidden="hidden"></p>
-                            <div class="stage-actions">
-                                <button id="done" disabled="disabled">Gửi câu trả lời</button>
-                                <span class="muted">Chỉ gửi khi bạn đã sẵn sàng.</span>
-                            </div>
+                            <div class="orb" id="orb" aria-hidden="true"></div>
+                            <div id="question" aria-live="polite"></div>
+                            <div id="heard" aria-live="polite"></div>
+                            <p class="muted" id="status"></p>
+                            <button id="done" disabled="disabled">I'm done</button>
                         </div>
-                        <script src="/rag_interview_agent/static/src/interview.js"></script>
+                        <!-- ponytail: bump ?v= after editing interview.js, browsers cache static files for 7 days --><script src="/rag_interview_agent/static/src/interview.js?v=3"></script>
                     </t>
                 </main>
             </body>

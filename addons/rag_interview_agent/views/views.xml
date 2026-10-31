@@ -6,43 +6,48 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_rebuild_index" type="object" string="Cập nhật tài liệu tham chiếu" invisible="state != 'ready'"/>
-                    <button name="action_retry_report" type="object" string="Tạo lại báo cáo" invisible="state not in ('done', 'error')"/>
+                    <button name="action_rebuild_index" type="object" string="Re-index Documents" invisible="state != 'ready'"/>
+                    <button name="action_retry_report" type="object" string="Retry Report" invisible="state not in ('done', 'error')"/>
                     <field name="state" widget="statusbar" statusbar_visible="ready,running,done,reported"/>
                 </header>
                 <sheet>
                     <h1><field name="name" readonly="1"/></h1>
                     <group>
                         <group>
-                            <field name="applicant_id" string="Ứng viên" readonly="1"/>
-                            <field name="job_id" string="Vị trí tuyển dụng"/>
-                            <field name="url" string="Liên kết phỏng vấn" widget="CopyClipboardChar" invisible="state not in ('ready', 'running')"/>
-                            <field name="max_questions" string="Số câu hỏi tối đa" readonly="state != 'ready'"/>
+                            <field name="applicant_id" readonly="1"/>
+                            <field name="job_id"/>
+                            <field name="url" widget="CopyClipboardChar" invisible="state not in ('ready', 'running')"/>
+                            <field name="max_topics" readonly="state != 'ready'"/>
+                            <field name="max_probes" readonly="state != 'ready'"/>
                         </group>
                         <group>
                             <field name="score" invisible="state != 'reported'"/>
                             <field name="recommendation" invisible="state != 'reported'"/>
+                            <field name="cv_consistency" invisible="state != 'reported'"/>
                             <field name="flags" invisible="not flags"/>
                             <field name="error" invisible="not error"/>
                         </group>
                     </group>
                     <notebook>
-                        <page string="Báo cáo AI" invisible="state != 'reported'">
+                        <page string="Report" invisible="state != 'reported'">
                             <group>
                                 <field name="summary"/>
+                                <field name="screening"/>
                                 <field name="strengths"/>
                                 <field name="concerns"/>
                                 <field name="cv_claims"/>
                             </group>
                         </page>
-                        <page string="Nội dung phỏng vấn">
+                        <page string="Transcript">
                             <field name="turn_ids" readonly="1">
                                 <list>
-                                    <field name="question" string="Câu hỏi"/>
-                                    <field name="answer" string="Câu trả lời"/>
+                                    <field name="topic_no"/>
+                                    <field name="topic"/>
+                                    <field name="question"/>
+                                    <field name="answer"/>
                                     <field name="score"/>
-                                    <field name="evidence" string="Bằng chứng" optional="hide"/>
-                                    <field name="flags" string="Điểm cần kiểm tra" optional="show"/>
+                                    <field name="evidence" optional="hide"/>
+                                    <field name="flags" optional="show"/>
                                 </list>
                             </field>
                         </page>
@@ -58,26 +63,23 @@
         <field name="model">rag.interview</field>
         <field name="arch" type="xml">
             <list>
-                <field name="name" string="Phiên phỏng vấn"/>
-                <field name="state" string="Trạng thái"/>
+                <field name="name"/>
+                <field name="state"/>
                 <field name="score"/>
                 <field name="recommendation"/>
-                <field name="create_date" string="Ngày tạo"/>
+                <field name="cv_consistency"/>
+                <field name="create_date"/>
             </list>
         </field>
     </record>
 
     <record id="action_rag_interview" model="ir.actions.act_window">
-        <field name="name">Phỏng vấn AI</field>
+        <field name="name">AI Interviews</field>
         <field name="res_model">rag.interview</field>
         <field name="view_mode">list,form</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">Chưa có phiên phỏng vấn AI</p>
-            <p>Mở một hồ sơ ứng viên và chọn Tạo phỏng vấn AI để bắt đầu.</p>
-        </field>
     </record>
 
-    <menuitem id="menu_rag_interview" name="Phỏng vấn AI" parent="hr_recruitment.menu_hr_recruitment_root"
+    <menuitem id="menu_rag_interview" name="AI Interviews" parent="hr_recruitment.menu_hr_recruitment_root"
               action="action_rag_interview" sequence="40"/>
 
     <record id="hr_applicant_form_rag" model="ir.ui.view">
@@ -86,26 +88,9 @@
         <field name="inherit_id" ref="hr_recruitment.hr_applicant_view_form"/>
         <field name="arch" type="xml">
             <header position="inside">
-                <button name="action_rag_interview" type="object" string="Tạo phỏng vấn AI" class="btn-secondary"
+                <button name="action_rag_interview" type="object" string="AI Interview" class="btn-secondary"
                         groups="hr_recruitment.group_hr_recruitment_user"/>
             </header>
-            <xpath expr="//notebook" position="inside">
-                <page string="Lịch sử phỏng vấn AI" name="rag_interview_history"
-                      groups="hr_recruitment.group_hr_recruitment_user">
-                    <p class="text-muted">Các phiên tạo bằng nút “Tạo phỏng vấn AI” của hồ sơ này. Chọn một phiên để xem báo cáo và nội dung hỏi đáp.</p>
-                    <field name="rag_interview_ids" readonly="1" nolabel="1"
-                           context="{'form_view_ref': 'rag_interview_agent.rag_interview_form'}">
-                        <list create="0" delete="0">
-                            <field name="create_date" string="Ngày tạo"/>
-                            <field name="name" string="Phiên phỏng vấn"/>
-                            <field name="state" string="Trạng thái" widget="badge"
-                                   decoration-success="state == 'reported'" decoration-danger="state == 'error'"/>
-                            <field name="score" string="Điểm AI (tham khảo)" invisible="state != 'reported'"/>
-                            <field name="recommendation" string="AI gợi ý" invisible="state != 'reported'"/>
-                        </list>
-                    </field>
-                </page>
-            </xpath>
         </field>
     </record>
 
@@ -115,7 +100,7 @@
         <field name="inherit_id" ref="base.view_company_form"/>
         <field name="arch" type="xml">
             <notebook position="inside">
-                <page string="Phỏng vấn AI" name="rag_interview">
+                <page string="AI Interview" name="rag_interview">
                     <field name="rag_background" placeholder="Mission, products, culture, team, ways of working..."/>
                 </page>
             </notebook>
