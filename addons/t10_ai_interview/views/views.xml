@@ -243,7 +243,7 @@
         <field name="name">hr.applicant.list.ai.pipeline</field>
         <field name="model">hr.applicant</field>
         <field name="arch" type="xml">
-            <list string="Ứng viên trong quy trình AI" create="0" default_order="write_date desc">
+            <list string="Ứng viên trong quy trình AI" class="aho-ai-pipeline-list" create="0" default_order="write_date desc">
                 <field name="partner_name" string="Ứng viên"/>
                 <field name="job_id" string="Vị trí"/>
                 <field name="stage_id" string="Giai đoạn tuyển dụng"/>

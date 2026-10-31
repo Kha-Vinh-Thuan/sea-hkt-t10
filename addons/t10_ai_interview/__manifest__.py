@@ -10,6 +10,13 @@
         'views/views.xml',
         'views/templates.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            't10_ai_interview/static/src/js/material_sidebar.js',
+            't10_ai_interview/static/src/xml/material_sidebar.xml',
+            't10_ai_interview/static/src/css/material_sidebar.scss',
+        ],
+    },
     'author': 'T10',
     'license': 'LGPL-3',
     'application': True,
