@@ -1,18 +1,10 @@
-/* Vertexa-inspired light workspace: a restrained cobalt accent, 8px rhythm, and clear data surfaces. */
-:root {
-    --aho-primary: #1845f5;
-    --aho-primary-hover: #1036cb;
-    --aho-primary-container: #eaf0ff;
-    --aho-surface: #f7f9fc;
-    --aho-ink: #18212c;
-    --aho-muted: #697586;
-    --aho-outline: #e1e7ef;
-    --aho-sidebar-width: 224px;
-}
+/* Recruitment navigation. Shared colors and components live in design_system.css and workspace_components.scss. */
+
 
 .aho-sidebar-brand,
 .aho-sidebar-menu,
-.aho-sidebar-footnote {
+.aho-sidebar-footnote,
+.aho-sidebar-toggle {
     display: none;
 }
 
@@ -60,9 +52,9 @@
         flex-direction: column;
         gap: 3px;
         padding: 8px 10px;
-        border-left: 2px solid var(--aho-primary);
+        border-left: 2px solid #c8cdd4;
         border-radius: 0 6px 6px 0;
-        background: #f3f6ff;
+        background: #f5f6f8;
     }
 
     .aho-candidate-scores {
@@ -82,22 +74,25 @@
     .o_web_client:has(> .o_navbar .aho-sidebar-brand) {
         color: var(--aho-ink);
         background: var(--aho-surface);
-        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: var(--aho-font);
+
+        flex-direction: row;
 
         > .o_navbar {
-            position: fixed;
-            inset: 0 auto 0 0;
+            position: relative;
+            flex: 0 0 var(--aho-sidebar-width);
             z-index: 1050;
             width: var(--aho-sidebar-width);
-            height: 100vh;
+            height: 100%;
             border-right: 1px solid var(--aho-outline);
             box-shadow: 2px 0 16px rgba(24, 69, 245, .025);
         }
 
         > .o_action_manager {
-            width: calc(100% - var(--aho-sidebar-width));
+            flex: 1 1 0;
+            width: auto;
             min-width: 0;
-            margin-left: var(--aho-sidebar-width);
+            margin-left: 0;
         }
 
         .o_main_navbar {
@@ -214,7 +209,7 @@
             padding: 7px 10px 8px;
             color: #8992a0;
             font-size: 10px;
-            font-weight: 750;
+            font-weight: 600;
             letter-spacing: .12em;
         }
 
@@ -250,7 +245,7 @@
 
         .aho-sidebar-link:hover {
             color: var(--aho-primary);
-            background: #f4f7ff;
+            background: #f5f6f8;
             text-decoration: none;
         }
 
@@ -262,7 +257,7 @@
         .aho-sidebar-link.aho-active {
             color: var(--aho-primary-hover);
             background: var(--aho-primary-container);
-            box-shadow: inset 3px 0 0 var(--aho-primary);
+            box-shadow: none;
             font-weight: 700;
         }
 
@@ -349,16 +344,16 @@
             border: 1px solid var(--aho-outline);
             border-radius: 10px;
             background: #fff;
-            box-shadow: 0 5px 18px rgba(24, 51, 100, .035);
+            box-shadow: none;
         }
 
         .o_action_manager .o_list_table thead {
             color: #566374;
-            background: #f4f7ff;
+            background: #f5f6f8;
         }
 
         .o_action_manager .o_list_table tbody tr:hover {
-            background: #f7f9ff;
+            background: #f8f9fb;
         }
 
         .o_action_manager .aho-ai-pipeline-list .o_list_table {
@@ -368,7 +363,7 @@
         .o_action_manager .o_form_view .o_form_sheet {
             border: 1px solid var(--aho-outline);
             border-radius: 10px;
-            box-shadow: 0 5px 18px rgba(24, 51, 100, .04);
+            box-shadow: none;
         }
 
         .o_action_manager .alert-info {
@@ -382,7 +377,7 @@
             border-color: var(--aho-primary);
             border-radius: 8px;
             background: var(--aho-primary);
-            box-shadow: 0 3px 10px rgba(24, 69, 245, .14);
+            box-shadow: none;
         }
 
         .o_action_manager .btn-primary:hover,

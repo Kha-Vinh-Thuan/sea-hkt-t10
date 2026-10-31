@@ -14,7 +14,9 @@
         'web.assets_backend': [
             't10_ai_interview/static/src/js/material_sidebar.js',
             't10_ai_interview/static/src/xml/material_sidebar.xml',
+            't10_ai_interview/static/src/css/design_system.css',
             't10_ai_interview/static/src/css/material_sidebar.scss',
+            't10_ai_interview/static/src/css/workspace_components.scss',
         ],
     },
     'author': 'T10',

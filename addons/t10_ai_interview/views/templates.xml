@@ -9,7 +9,6 @@
                 <title>Đặt lịch phỏng vấn</title>
                 <style>
                     :root { --bg:#f7f9fc; --card:#fff; --text:#18212c; --muted:#697586; --accent:#1845f5; --me:#eaf0ff; --border:#e1e7ef; --rec:#b3261e; }
-                    @media (prefers-color-scheme: dark) { :root { --bg:#17161d; --card:#24222c; --text:#f0edf5; --muted:#bcb8c8; --accent:#d0bcff; --me:#44365f; --border:#494451; --rec:#f2b8b5; } }
                     * { box-sizing: border-box; }
                     body { margin:0; font:16px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--text); }
                     main { max-width:800px; margin:0 auto; padding:32px 16px 56px; min-height:100vh; display:flex; flex-direction:column; gap:16px; }
@@ -25,7 +24,6 @@
                     form { display:flex; gap:8px; flex-wrap:wrap; }
                     textarea { flex:1 1 240px; resize:vertical; min-height:72px; padding:12px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--text); font:inherit; }
                     button { padding:10px 18px; border:0; border-radius:100px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
-                    @media (prefers-color-scheme: dark) { button:not(.ghost):not(.rec) { color:#251a36; } }
                     button.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); text-align:left; min-height:52px; }
                     button.ghost:hover { background:var(--me); }
                     button.rec { background:var(--rec); }
@@ -37,8 +35,9 @@
                     @media (max-width:520px) { form button { width:100%; } .slots { grid-template-columns:1fr; } }
                     [hidden] { display:none !important; }
                 </style>
+                <link rel="stylesheet" href="/t10_ai_interview/static/src/css/design_system.css"/>
             </head>
-            <body><main><div class="brand"><img src="/t10_ai_interview/static/src/img/ai-hiring-operator.svg" alt=""/>AI Hiring Operator</div><t t-out="0"/></main></body>
+            <body class="aho-public"><main><div class="brand"><img src="/t10_ai_interview/static/src/img/ai-hiring-operator.svg?v=2" alt=""/>AI Hiring Operator</div><t t-out="0"/></main></body>
         </html>
     </template>
 

@@ -9,6 +9,11 @@ patch(NavBar.prototype, {
     setup() {
         super.setup();
         this.state.ahoLocation = window.location.pathname;
+        try {
+            this.state.ahoSidebarCollapsed = window.localStorage.getItem("aho.sidebar.collapsed") === "true";
+        } catch {
+            this.state.ahoSidebarCollapsed = false;
+        }
         useListener(window, "popstate", () => {
             this.state.ahoLocation = window.location.pathname;
         });
@@ -17,6 +22,13 @@ patch(NavBar.prototype, {
     async _onMenuClicked(menu) {
         await super._onMenuClicked(menu);
         this.state.ahoLocation = window.location.pathname;
+    },
+
+    toggleAhoSidebar() {
+        this.state.ahoSidebarCollapsed = !this.state.ahoSidebarCollapsed;
+        try {
+            window.localStorage.setItem("aho.sidebar.collapsed", String(this.state.ahoSidebarCollapsed));
+        } catch { /* Navigation remains usable when browser storage is unavailable. */ }
     },
 
     findAhoMenu(xmlid) {
