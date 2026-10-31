@@ -1,6 +1,36 @@
 # Recruitment UI — bàn giao cho team
 
-Module `aho_recruitment_ui` cung cấp giao diện sáng cho Odoo Recruitment: ba mục điều hướng, sidebar thu gọn, card tuyển dụng, card/list ứng viên và lịch sử phỏng vấn AI trong hồ sơ. Baseline main: `f444ec8`. Bản đồng bộ token/component theo kit Figma đã được kiểm tra lại trên Odoo ngày 31/10/2026; xem phạm vi runtime bên dưới.
+Module `aho_recruitment_ui` cung cấp giao diện sáng cho Odoo Recruitment: hai nhóm điều hướng, sidebar thu gọn, card tuyển dụng, card/list ứng viên và lịch sử phỏng vấn AI trong hồ sơ. Baseline main: `f444ec8`. Bản đồng bộ token/component theo kit Figma đã được kiểm tra lại trên Odoo ngày 31/10/2026; xem phạm vi runtime bên dưới.
+
+## Bộ UI chung để team phát triển tiếp
+
+Điểm bắt đầu cho mọi màn hình mới là addon này. Bộ UI hiện tại dùng Odoo 20 / OWL 3 và CSS/SCSS, theo phong cách sáng của kit Venture CRM; không cần cài thêm thư viện giao diện để chỉnh tiếp trong Odoo.
+
+| Muốn chỉnh | Nguồn dùng chung | Quy ước |
+| --- | --- | --- |
+| Màu, font, khoảng cách, radius, độ rộng sidebar | [design_system.css](static/src/css/design_system.css) | Token `--aho-*` chỉ định nghĩa tại đây. Chú thích `kit` là giá trị đọc từ Figma; `approx` là giá trị ước lượng, có thể tinh chỉnh. |
+| Nút, badge, card, bảng, form, tab, header, cột Kanban | [workspace_components.scss](static/src/css/workspace_components.scss) | Dùng cấu trúc/class Odoo sẵn có; sửa component một lần để các trang nhận cùng kiểu. |
+| Bố cục và điều hướng | [material_sidebar.scss](static/src/css/material_sidebar.scss), [JS](static/src/js/material_sidebar.js), [XML](static/src/xml/material_sidebar.xml) | Chỉ đặt style điều hướng/layout ở đây; menu đi qua menu/action service và quyền Odoo. |
+| Funnel giai đoạn và danh sách cảnh báo | [stage_funnel.js](static/src/js/stage_funnel.js), [stage_funnel.xml](static/src/xml/stage_funnel.xml) | Tái sử dụng field widget `aho_stage_funnel`, `aho_warning_list`; dữ liệu và quyết định nghiệp vụ nằm ở model. |
+| Card vị trí và profile/list/card ứng viên | [recruitment.xml](views/recruitment.xml), [applicant.xml](views/applicant.xml) | Kế thừa view core, giữ action, filter, drag/drop, field và quyền truy cập. |
+| Trang phỏng vấn của ứng viên | [templates.xml](views/templates.xml), phần `body.aho-public` trong token CSS | Cùng token với workspace; layout public có scope riêng. |
+| Logo | [ai-hiring-operator.svg](static/src/img/ai-hiring-operator.svg) | Tái sử dụng asset này ở các điểm nhận diện. |
+
+### Cách thêm hoặc sửa một màn hình
+
+1. Fetch main mới nhất và tạo nhánh riêng. Với thay đổi giao diện, chỉnh trong `aho_recruitment_ui`; tránh sửa trực tiếp addon core/AI chỉ để đổi style.
+2. Tái sử dụng nút native `btn btn-primary` / `btn btn-secondary`, badge và cấu trúc form/list/Kanban có sẵn. Kiểu dùng chung chỉ đặt trong `workspace_components.scss`; style mới đặt dưới scope workspace hiện có, dùng token thay vì tạo bảng màu/radius riêng cho từng trang.
+3. Dùng tiền tố `aho-` cho class mới, `--aho-*` cho token mới. Kiểm tra thành phần hiện có trước khi thêm biến thể. Giữ cả trạng thái hover, focus, disabled, empty, loading và error khi thành phần có những trạng thái này.
+4. Khi thêm file, khai báo đúng thứ tự asset trong `__manifest__.py`: token trước style component. Màn Odoo ngoài workspace có sidebar không tự nhận toàn bộ style; cần thống nhất scope và kiểm tra lại trước khi mở rộng.
+5. Nâng cấp addon khi đổi model/view/manifest, tải lại assets và kiểm tra trên đúng database thử. Với màn có hành vi, kiểm tra card/list, lọc theo vị trí, mở profile, thao tác Kanban và quyền người dùng; thêm kiểm tra riêng cho hành vi mới.
+6. So lại desktop và cửa sổ hẹp, sidebar mở/thu gọn, chữ dài, hồ sơ rỗng và lỗi. Chụp màn đã kiểm tra trong PR để người tiếp theo có mốc đối chiếu.
+
+### Khi teammate nối hub AI
+
+Nếu hub chạy trong Odoo, tái sử dụng token và component trong asset backend hiện có; nối action tạo vị trí tới hub thật, giữ liên kết `hr.job` / `hr.applicant`. Nếu hub chạy bằng frontend riêng, chia sẻ các giá trị token và quy ước trạng thái; component OWL/Odoo cần được chuyển thể theo framework đó. Không sao chép toàn bộ SCSS native sang frontend khác và giả định sẽ chạy tương đương.
+
+Mỗi thay đổi component phải xem cả trang tuyển dụng, ứng viên và trang phỏng vấn public có liên quan. Đổi token không làm thay đổi logic gửi thư, scheduling hay quyền dữ liệu; các luồng đó cần được kiểm tra sau tích hợp.
+
 
 ## Cài vào database thử
 
