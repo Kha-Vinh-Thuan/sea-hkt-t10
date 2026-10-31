@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Keep the project-facing Odoo labels consistent without changing their actions. -->
+    <record id="hr_recruitment.action_hr_job" model="ir.actions.act_window"><field name="name">Vị trí tuyển dụng</field></record>
+    <record id="hr_recruitment.action_hr_job_interviewer" model="ir.actions.act_window"><field name="name">Vị trí tuyển dụng</field></record>
+    <record id="hr_recruitment.crm_case_categ0_act_job" model="ir.actions.act_window"><field name="name">Tất cả hồ sơ</field></record>
+    <record id="hr_recruitment.action_hr_talent_pool" model="ir.actions.act_window"><field name="name">Kho ứng viên</field></record>
+    <record id="hr_recruitment.menu_hr_job_position" model="ir.ui.menu"><field name="name">Vị trí tuyển dụng</field></record>
+    <record id="hr_recruitment.menu_hr_job_position_interviewer" model="ir.ui.menu"><field name="name">Vị trí tuyển dụng</field></record>
+    <record id="hr_recruitment.menu_crm_case_categ_all_app" model="ir.ui.menu"><field name="name">Tất cả hồ sơ</field></record>
+    <record id="hr_recruitment.menu_hr_talent_pools" model="ir.ui.menu"><field name="name">Kho ứng viên</field></record>
+
     <!-- ============ Job: pipeline config + learning ============ -->
     <record id="hr_job_form_ai" model="ir.ui.view">
         <field name="name">hr.job.form.ai</field>
@@ -108,14 +118,14 @@
         <field name="model">t10.ai.cv.upload</field>
         <field name="arch" type="xml">
             <form>
-                <p class="text-muted">PDF, image or text CVs. Each file becomes an applicant; the Filter agent reads it and fills in the contact details.</p>
+                <p class="text-muted">Chọn CV dạng PDF, ảnh hoặc văn bản. Mỗi tệp tạo một hồ sơ; AI trích thông tin để người tuyển kiểm tra.</p>
                 <group>
                     <field name="job_id" readonly="1"/>
                     <field name="attachment_ids" widget="many2many_binary"/>
                 </group>
                 <footer>
-                    <button name="action_upload" type="object" string="Upload and Screen" class="btn-primary"/>
-                    <button special="cancel" string="Cancel"/>
+                    <button name="action_upload" type="object" string="Thêm CV và bắt đầu lọc" class="btn-primary"/>
+                    <button special="cancel" string="Hủy"/>
                 </footer>
             </form>
         </field>
@@ -141,6 +151,32 @@
                 <button string="Thử lại bước AI" name="action_ai_retry" type="object" invisible="ai_step != 'error'"/>
                 <button string="Start AI Pipeline" name="action_ai_start" type="object"
                         invisible="ai_step or not active" groups="base.group_no_one"/>
+            </xpath>
+            <xpath expr="//header/button[@name='archive_applicant']" position="attributes">
+                <attribute name="string">Từ chối hồ sơ</attribute>
+                <attribute name="invisible">not active or is_pool_applicant or ai_step == 'reported'</attribute>
+            </xpath>
+            <xpath expr="//header/button[@name='action_talent_pool_add_applicants']" position="attributes">
+                <attribute name="string">Thêm vào kho ứng viên</attribute>
+            </xpath>
+            <xpath expr="//div[hasclass('oe_title')]/label[@for='partner_name']" position="attributes">
+                <attribute name="string">Ứng viên</attribute>
+            </xpath>
+            <xpath expr="//sheet//field[@name='job_id']" position="attributes">
+                <attribute name="string">Vị trí tuyển dụng</attribute>
+                <attribute name="placeholder">Ứng tuyển tự do</attribute>
+            </xpath>
+            <xpath expr="//sheet//field[@name='recruiter_id']" position="attributes">
+                <attribute name="string">HR phụ trách</attribute>
+                <attribute name="placeholder">Chưa phân công</attribute>
+            </xpath>
+            <xpath expr="//sheet//field[@name='interviewer_ids']" position="attributes">
+                <attribute name="string">Người phỏng vấn</attribute>
+                <attribute name="placeholder">Chọn người phỏng vấn</attribute>
+            </xpath>
+            <xpath expr="//sheet//field[@name='categ_ids']" position="attributes">
+                <attribute name="string">Nhãn</attribute>
+                <attribute name="placeholder">Ví dụ: tiềm năng</attribute>
             </xpath>
             <xpath expr="//notebook" position="before">
                 <div class="alert alert-info mb-2" role="status" invisible="not ai_step">
@@ -173,7 +209,7 @@
                         Tóm tắt và điểm AI là thông tin tham khảo. Xem CV, transcript và nhận xét người phỏng vấn trước khi quyết định.
                     </div>
                     <div class="alert alert-warning" role="alert" invisible="not ai_integrity_summary or ai_integrity_score &gt;= 80">
-                        <b>Nghi vấn gian lận (<field name="ai_integrity_score" readonly="1" class="d-inline"/>/100):</b>
+                        <b>Tín hiệu phỏng vấn cần kiểm tra (<field name="ai_integrity_score" readonly="1" class="d-inline"/>/100):</b>
                         <field name="ai_integrity_summary" readonly="1" class="d-inline"/>
                     </div>
                     <group string="Bằng chứng để người phụ trách xem xét">
@@ -253,7 +289,7 @@
         <field name="name">hr.applicant.list.ai.pipeline</field>
         <field name="model">hr.applicant</field>
         <field name="arch" type="xml">
-            <list string="Ứng viên trong quy trình AI" class="aho-ai-pipeline-list" create="0" default_order="write_date desc">
+            <list string="Theo dõi ứng viên" class="aho-ai-pipeline-list" create="0" default_order="write_date desc">
                 <field name="partner_name" string="Ứng viên"/>
                 <field name="job_id" string="Vị trí"/>
                 <field name="stage_id" string="Giai đoạn tuyển dụng"/>
@@ -266,7 +302,7 @@
                 <field name="ai_interview_start" string="Lịch phỏng vấn" optional="show"/>
                 <field name="activity_date_deadline" string="Hạn xử lý" optional="show"/>
                 <field name="ai_recommendation" string="AI đề xuất" widget="badge" optional="hide"/>
-                <field name="talent_pool_ids" string="Talent Pool" widget="many2many_tags" optional="hide"/>
+                <field name="talent_pool_ids" string="Kho ứng viên" widget="many2many_tags" optional="hide"/>
             </list>
         </field>
     </record>
@@ -293,7 +329,7 @@
     </record>
 
     <record id="action_ai_pipeline" model="ir.actions.act_window">
-        <field name="name">Ứng viên trong quy trình AI</field>
+        <field name="name">Theo dõi ứng viên</field>
         <field name="res_model">hr.applicant</field>
         <field name="view_mode">list,kanban,form,pivot,graph</field>
         <field name="view_id" ref="hr_applicant_list_ai_pipeline"/>
@@ -345,6 +381,6 @@
 
     <menuitem id="menu_ai_root" name="AI Hiring Operator" parent="hr_recruitment.menu_hr_recruitment_root" sequence="2"/>
     <menuitem id="menu_ai_jobs" name="Job Setup" parent="menu_ai_root" action="hr_recruitment.action_hr_job_config" sequence="0" groups="base.group_no_one"/>
-    <menuitem id="menu_ai_pipeline" name="Ứng viên" parent="menu_ai_root" action="action_ai_pipeline" sequence="1"/>
+    <menuitem id="menu_ai_pipeline" name="Theo dõi ứng viên" parent="menu_ai_root" action="action_ai_pipeline" sequence="1"/>
     <menuitem id="menu_ai_log" name="Agent Activity" parent="menu_ai_root" action="action_ai_log" sequence="2" groups="base.group_no_one"/>
 </odoo>

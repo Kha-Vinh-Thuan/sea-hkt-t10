@@ -32,24 +32,24 @@ IMPROVER_SCHEMA = {
 class HrJob(models.Model):
     _inherit = 'hr.job'
 
-    ai_enabled = fields.Boolean("AI Recruiting Pipeline")
+    ai_enabled = fields.Boolean("Bật quy trình AI")
     ai_must_have = fields.Text(
         "Must-have Requirements",
         help="Used by the Filter agent to score CVs against this job.")
     ai_filter_threshold = fields.Integer("Match Threshold", default=70,
                                          help="CVs scoring at least this (0-100) go on to scheduling.")
     ai_questions = fields.Text(
-        "Base Interview Questions",
+        "Câu hỏi phỏng vấn mẫu",
         default="1. Tell me about yourself and why this role interests you.\n"
                 "2. Describe a difficult problem you solved recently. What was your approach?\n"
                 "3. Which skills from the job description are you strongest and weakest in?")
     ai_rubric = fields.Text(
-        "Scoring Rubric",
+        "Tiêu chí đánh giá",
         default="- Relevant experience (0-10)\n"
                 "- Problem solving (0-10)\n"
                 "- Communication clarity (0-10)\n"
                 "- Motivation and fit (0-10)")
-    ai_max_turns = fields.Integer("Max Candidate Answers", default=10)
+    ai_max_turns = fields.Integer("Số câu trả lời tối đa", default=10)
     ai_slot_minutes = fields.Integer("Interview Length (min)", default=30)
     ai_join_anytime = fields.Boolean("Demo: join interview anytime",
                                      help="Skip the booked-time window check. For demos and testing only.")
@@ -60,7 +60,7 @@ class HrJob(models.Model):
     ai_industry = fields.Selection([
         ('it', 'IT / Phần mềm'), ('sales', 'Kinh doanh'), ('marketing', 'Marketing'), ('finance', 'Tài chính / Kế toán'),
         ('hr', 'Nhân sự'), ('manufacturing', 'Sản xuất'), ('retail', 'Bán lẻ / F&B'), ('other', 'Khác'),
-    ], "Industry", default='other',
+    ], "Ngành nghề", default='other',
         help="Sent to T10 Interview AI: picks its industry interviewer adapter when one is trained.")
     ai_model_auto = fields.Boolean(
         "Auto-tune Models", default=True,
@@ -193,7 +193,7 @@ class HrJob(models.Model):
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
-            'name': _("Upload CVs"),
+            'name': _("Thêm CV"),
             'res_model': 't10.ai.cv.upload',
             'view_mode': 'form',
             'target': 'new',

@@ -21,20 +21,20 @@ JOIN_LATE = timedelta(hours=1)
 
 
 STEPS = [
-    ('new', 'Queued'),
-    ('screened_out', 'Screened Out'),
-    ('passed', 'CV Matched'),
-    ('scheduling', 'Scheduling'),
-    ('scheduled', 'Scheduled'),
-    ('interviewing', 'Interviewing'),
-    ('interviewed', 'Interviewed'),
-    ('reported', 'Awaiting Decision'),
-    ('decided', 'Decided'),
-    ('no_show', 'No Show'),
-    ('declined', 'Candidate Declined'),
-    ('error', 'Error'),
+    ('new', 'Chờ lọc CV'),
+    ('screened_out', 'Cần HR xem lại CV'),
+    ('passed', 'CV phù hợp sơ bộ'),
+    ('scheduling', 'Đang chọn lịch'),
+    ('scheduled', 'Đã xác nhận lịch'),
+    ('interviewing', 'Đang phỏng vấn'),
+    ('interviewed', 'Đã phỏng vấn'),
+    ('reported', 'Chờ người tuyển quyết định'),
+    ('decided', 'Đã quyết định vòng AI'),
+    ('no_show', 'Vắng mặt'),
+    ('declined', 'Ứng viên từ chối'),
+    ('error', 'Lỗi xử lý AI'),
 ]
-DECISIONS = [('approve', 'Approve'), ('reject', 'Reject')]
+DECISIONS = [('approve', 'Qua vòng'), ('reject', 'Không qua vòng')]
 AGENTS = [
     ('orchestrator', 'Orchestrator'), ('filter', 'Filter'), ('schedule', 'Schedule'),
     ('interview', 'Interview'), ('report', 'Report'), ('recruiter', 'Recruiter'),
@@ -80,8 +80,8 @@ def _utcnow():
 class HrApplicant(models.Model):
     _inherit = 'hr.applicant'
 
-    ai_step = fields.Selection(STEPS, string="AI Step", copy=False, tracking=True, index=True)
-    ai_next_action = fields.Char("Next Action", compute="_compute_ai_next_action")
+    ai_step = fields.Selection(STEPS, string="Bước AI", copy=False, tracking=True, index=True)
+    ai_next_action = fields.Char("Việc tiếp theo", compute="_compute_ai_next_action")
     ai_retry_step = fields.Char(copy=False)
     ai_token = fields.Char(copy=False, groups='hr_recruitment.group_hr_recruitment_user', index='btree_not_null')
     ai_url = fields.Char("Candidate Link", compute='_compute_ai_url')
@@ -91,9 +91,9 @@ class HrApplicant(models.Model):
     ai_models = fields.Json(copy=False)  # {agent: model} used for this candidate, sticky across turns
     ai_costs = fields.Json(copy=False)   # {agent: USD}
     # Filter
-    ai_match_score = fields.Integer("CV Match", copy=False, aggregator='avg')
-    ai_match_summary = fields.Text("CV Analysis", copy=False)
-    ai_verify_claims = fields.Text("Claims to Verify", copy=False, help="Handed from the Filter to the Interview agent.")
+    ai_match_score = fields.Integer("Mức khớp CV (tham khảo)", copy=False, aggregator='avg')
+    ai_match_summary = fields.Text("Phân tích CV do AI tạo", copy=False)
+    ai_verify_claims = fields.Text("Điểm cần xác minh", copy=False, help="Thông tin từ bước lọc CV để kiểm tra trong phỏng vấn.")
     ai_filter_override = fields.Boolean(copy=False)
     # Schedule
     ai_slots = fields.Json(copy=False)
@@ -101,25 +101,25 @@ class HrApplicant(models.Model):
     ai_reschedule_count = fields.Integer(copy=False)
     ai_no_shows = fields.Integer(copy=False)
     ai_event_id = fields.Many2one('calendar.event', "AI Interview Meeting", copy=False)
-    ai_interview_start = fields.Datetime(related='ai_event_id.start', string="Interview Time")
+    ai_interview_start = fields.Datetime(related='ai_event_id.start', string="Lịch phỏng vấn")
     # Interview
     ai_session_id = fields.Char("T10 Interview Session", copy=False, readonly=True, index='btree_not_null')
     ai_join_url = fields.Char("T10 Interview Room", copy=False, readonly=True, groups='hr_recruitment.group_hr_recruitment_user')
     ai_transcript = fields.Json(copy=False)
-    ai_transcript_text = fields.Text("Transcript", compute='_compute_ai_transcript_text')
-    ai_integrity_score = fields.Integer("Integrity Score", copy=False,
-                                        help="100 = no suspicious behaviour. Set by the Report agent from proctoring events.")
-    ai_integrity_summary = fields.Text("Integrity Review", copy=False)
+    ai_transcript_text = fields.Text("Nội dung phỏng vấn", compute='_compute_ai_transcript_text')
+    ai_integrity_score = fields.Integer("Tín hiệu giám sát", copy=False,
+                                        help="100 = không có tín hiệu cần kiểm tra; đây không phải kết luận về ứng viên.")
+    ai_integrity_summary = fields.Text("Ghi chú giám sát", copy=False)
     # Report
-    ai_score = fields.Integer("Interview Score", copy=False, aggregator='avg')
-    ai_recommendation = fields.Selection(DECISIONS, "AI Suggests", copy=False)
-    ai_verdict = fields.Selection([('pass', 'Pass'), ('review', 'Gray zone: you decide'), ('reject', 'Reject')],
-                                  "AI Verdict", copy=False)
-    ai_summary = fields.Text("AI Report", copy=False)
-    ai_human_decision = fields.Selection(DECISIONS, "Recruiter Decision", copy=False, tracking=True)
+    ai_score = fields.Integer("Điểm phỏng vấn AI (tham khảo)", copy=False, aggregator='avg')
+    ai_recommendation = fields.Selection(DECISIONS, "AI gợi ý", copy=False)
+    ai_verdict = fields.Selection([('pass', 'Nên xem xét qua vòng'), ('review', 'Cần người tuyển xem thêm'), ('reject', 'Nên xem xét không qua vòng')],
+                                  "Nhận định của AI", copy=False)
+    ai_summary = fields.Text("Tóm tắt phỏng vấn do AI tạo", copy=False)
+    ai_human_decision = fields.Selection(DECISIONS, "Quyết định của người tuyển", copy=False, tracking=True)
     ai_feedback = fields.Text(
-        "Feedback on AI", copy=False,
-        help="Where did the AI judge this candidate wrongly? The agents learn from this.")
+        "Ghi chú kiểm tra AI", copy=False,
+        help="Ghi thông tin AI hiểu sai hoặc bằng chứng cần người tuyển kiểm tra thêm.")
     # Timeline for effectiveness metrics
     ai_screened_at = fields.Datetime(copy=False)
     ai_invited_at = fields.Datetime(copy=False)
@@ -137,7 +137,7 @@ class HrApplicant(models.Model):
             'scheduled': _("Chờ buổi phỏng vấn đã xác nhận"),
             'interviewing': _("Chờ ứng viên hoàn tất phỏng vấn"),
             'interviewed': _("AI đang chuẩn bị báo cáo phỏng vấn"),
-            'reported': _("Người phụ trách xem bằng chứng và quyết định qua vòng"),
+            'reported': _("Kiểm tra bằng chứng và quyết định bước tiếp theo"),
             'decided': _("Theo dõi giai đoạn tuyển dụng tiếp theo trên Odoo"),
             'no_show': _("HR xem lại và quyết định có đổi lịch"),
             'declined': _("HR ghi nhận việc ứng viên từ chối"),
@@ -147,7 +147,7 @@ class HrApplicant(models.Model):
             if not applicant.active:
                 applicant.ai_next_action = _("Hồ sơ đã lưu trữ")
             elif applicant.ai_step != 'decided' and not applicant.recruiter_id:
-                applicant.ai_next_action = _("HR lead cần phân người phụ trách")
+                applicant.ai_next_action = _("Cần phân công HR phụ trách")
             else:
                 applicant.ai_next_action = actions.get(applicant.ai_step, "")
 

@@ -4,48 +4,39 @@
         <xpath expr="//div[hasclass('o_menu_systray')]" position="before">
             <t t-if="this.currentApp?.xmlid === 'hr_recruitment.menu_hr_recruitment_root'">
                 <div class="aho-sidebar-brand">
-                    <t t-set="aiHome" t-value="this.currentAppSections.find((section) => section.xmlid === 't10_ai_interview.menu_ai_root')?.childrenTree?.find((child) => child.xmlid === 't10_ai_interview.menu_ai_pipeline')"/>
-                    <a t-att-href="aiHome ? this.getMenuItemHref(aiHome) : '/odoo'" class="aho-brand-link" aria-label="AI Hiring Operator - Ứng viên">
-                        <img src="/t10_ai_interview/static/src/img/ai-hiring-operator.svg" alt="" width="42" height="42"/>
+                    <t t-set="aiHome" t-value="this.findAhoMenu('t10_ai_interview.menu_ai_pipeline')"/>
+                    <a t-att-href="aiHome ? this.getMenuItemHref(aiHome) : '/odoo'" class="aho-brand-link" aria-label="AI Hiring Operator - Theo dõi ứng viên">
+                        <img src="/t10_ai_interview/static/src/img/ai-hiring-operator.svg" alt="" width="40" height="40"/>
                         <span class="aho-brand-copy">
                             <strong>AI Hiring</strong>
                             <span>Operator</span>
                         </span>
                     </a>
-                    <div class="aho-brand-caption">Recruitment workspace</div>
+                    <div class="aho-brand-caption">Điều phối tuyển dụng</div>
                 </div>
-                <div class="aho-sidebar-label">WORKSPACE</div>
-                <ul class="aho-sidebar-menu" role="menu" aria-label="Recruitment navigation">
-                    <t t-foreach="this.currentAppSections" t-as="section" t-key="section.id">
-                        <t t-call="t10_ai_interview.MaterialSidebarEntry" section="section"/>
-                    </t>
-                </ul>
+                <nav class="aho-sidebar-menu" aria-label="Điều hướng tuyển dụng">
+                    <div class="aho-sidebar-section-label">01 / QUY TRÌNH</div>
+                    <t t-call="t10_ai_interview.MaterialSidebarEntry" menu="this.findAhoMenu('hr_recruitment.menu_hr_job_position') || this.findAhoMenu('hr_recruitment.menu_hr_job_position_interviewer')" label="'Vị trí tuyển dụng'" icon="'work'"/>
+                    <t t-call="t10_ai_interview.MaterialSidebarEntry" menu="this.findAhoMenu('t10_ai_interview.menu_ai_pipeline')" label="'Theo dõi ứng viên'" icon="'groups'"/>
+                    <t t-call="t10_ai_interview.MaterialSidebarEntry" menu="this.findAhoMenu('rag_interview_agent.menu_rag_interview')" label="'Phỏng vấn AI'" icon="'forum'"/>
+                    <div class="aho-sidebar-section-label aho-sidebar-section-gap">02 / HỒ SƠ</div>
+                    <t t-call="t10_ai_interview.MaterialSidebarEntry" menu="this.findAhoMenu('hr_recruitment.menu_crm_case_categ_all_app')" label="'Tất cả hồ sơ'" icon="'description'"/>
+                    <t t-call="t10_ai_interview.MaterialSidebarEntry" menu="this.findAhoMenu('hr_recruitment.menu_hr_talent_pools')" label="'Kho ứng viên'" icon="'inventory_2'"/>
+                </nav>
+                <div class="aho-sidebar-footnote">AI hỗ trợ · Người tuyển quyết định</div>
             </t>
         </xpath>
     </t>
 
     <t t-name="t10_ai_interview.MaterialSidebarEntry">
-        <li t-if="section.childrenTree.length" class="aho-sidebar-group">
-            <div class="aho-sidebar-group-title">
-                <span class="aho-group-icon" aria-hidden="true"/>
-                <t t-out="section.name"/>
-            </div>
-            <ul class="aho-sidebar-submenu">
-                <t t-foreach="section.childrenTree" t-as="child" t-key="child.id">
-                    <t t-call="t10_ai_interview.MaterialSidebarEntry" section="child"/>
-                </t>
-            </ul>
-        </li>
-        <li t-else="" class="aho-sidebar-item">
-            <a t-att-href="this.getMenuItemHref(section)"
-               t-att-class="{'aho-active': this.isSidebarMenuActive(section)}"
-               t-att-aria-current="this.isSidebarMenuActive(section) ? 'page' : undefined"
-               t-att-data-menu-xmlid="section.xmlid"
-               t-on-click.prevent="() => this._onMenuClicked(section)"
-               role="menuitem">
-                <span class="aho-nav-marker" aria-hidden="true"/>
-                <span t-out="section.name"/>
-            </a>
-        </li>
+        <a t-if="menu"
+           t-att-href="this.getMenuItemHref(menu)"
+           t-att-class="{'aho-sidebar-link': true, 'aho-active': this.isSidebarMenuActive(menu)}"
+           t-att-aria-current="this.isSidebarMenuActive(menu) ? 'page' : undefined"
+           t-att-data-menu-xmlid="menu.xmlid"
+           t-on-click.prevent="() => this._onMenuClicked(menu)">
+            <i class="oi" t-att-data-icon="icon" aria-hidden="true"/>
+            <span t-out="label"/>
+        </a>
     </t>
 </templates>

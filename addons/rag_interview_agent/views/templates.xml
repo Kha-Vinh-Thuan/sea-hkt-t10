@@ -8,7 +8,7 @@
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <title>Phỏng vấn trực tuyến</title>
                 <style>
-                    :root { --bg:#f7f8fc; --card:#fff; --text:#22232b; --muted:#6c7080; --accent:#6750a4; --border:#e5e7ef; --rec:#b3261e; }
+                    :root { --bg:#f7f9fc; --card:#fff; --text:#18212c; --muted:#697586; --accent:#1845f5; --border:#e1e7ef; --rec:#b3261e; }
                     @media (prefers-color-scheme: dark) { :root { --bg:#17161d; --card:#24222c; --text:#f0edf5; --muted:#bcb8c8; --accent:#d0bcff; --border:#494451; --rec:#f2b8b5; } }
                     * { box-sizing: border-box; }
                     body { margin:0; font:16px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--text); }

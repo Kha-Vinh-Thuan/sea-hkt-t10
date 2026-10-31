@@ -32,7 +32,7 @@ class ResCompany(models.Model):
 class HrApplicant(models.Model):
     _inherit = 'hr.applicant'
 
-    rag_interview_ids = fields.One2many('rag.interview', 'applicant_id', "AI Interviews")
+    rag_interview_ids = fields.One2many('rag.interview', 'applicant_id', "Phỏng vấn AI")
 
     def _rag_cv_text(self):
         """CV text from the newest attachment. attachment_indexation (a hr_recruitment dependency) already
@@ -71,23 +71,24 @@ class RagInterview(models.Model):
     company_id = fields.Many2one(related='applicant_id.company_id', store=True)
     token = fields.Char(copy=False, index=True, groups='hr_recruitment.group_hr_recruitment_user')
     url = fields.Char(compute='_compute_url')
-    state = fields.Selection([('ready', 'Ready'), ('running', 'Interviewing'), ('done', 'Writing Report'),
-                              ('reported', 'Reported'), ('error', 'Error')], default='ready', tracking=True)
+    state = fields.Selection([('ready', 'Sẵn sàng'), ('running', 'Đang phỏng vấn'), ('done', 'Đang tạo báo cáo'),
+                              ('reported', 'Có báo cáo'), ('error', 'Lỗi xử lý')], default='ready', tracking=True)
     max_questions = fields.Integer(default=8)
     docs = fields.Json(copy=False)      # {source: full text}: what the report model reads
     index = fields.Json(copy=False)     # [{source, text, vec}]: what retrieval reads
     pending_question = fields.Text(copy=False)
-    turn_ids = fields.One2many('rag.interview.turn', 'interview_id', "Transcript")
-    flags = fields.Char(copy=False)
+    turn_ids = fields.One2many('rag.interview.turn', 'interview_id', "Nội dung phỏng vấn")
+    flags = fields.Char("Điểm cần kiểm tra", copy=False)
     consent_at = fields.Datetime(copy=False)
-    score = fields.Integer(copy=False)
-    recommendation = fields.Selection([('strong_yes', 'Strong Yes'), ('yes', 'Yes'), ('maybe', 'Maybe'),
-                                       ('no', 'No')], copy=False, tracking=True)
-    summary = fields.Text(copy=False)
-    strengths = fields.Text(copy=False)
-    concerns = fields.Text(copy=False)
-    cv_claims = fields.Text("CV Claims Checked", copy=False)
-    error = fields.Text(copy=False)
+    score = fields.Integer("Điểm AI (tham khảo)", copy=False)
+    recommendation = fields.Selection([('strong_yes', 'Nên xem xét qua vòng'), ('yes', 'Có thể qua vòng'),
+                                       ('maybe', 'Cần xem thêm'), ('no', 'Cần xem lại sự phù hợp')],
+                                      string="AI gợi ý", copy=False, tracking=True)
+    summary = fields.Text("Tóm tắt do AI tạo", copy=False)
+    strengths = fields.Text("Bằng chứng tích cực", copy=False)
+    concerns = fields.Text("Điểm cần xác minh", copy=False)
+    cv_claims = fields.Text("Thông tin CV cần kiểm tra", copy=False)
+    error = fields.Text("Lỗi xử lý", copy=False)
 
     @api.depends('applicant_id', 'job_id')
     def _compute_name(self):
@@ -234,6 +235,6 @@ class RagInterviewTurn(models.Model):
     interview_id = fields.Many2one('rag.interview', required=True, ondelete='cascade', index=True)
     question = fields.Text(required=True)
     answer = fields.Text()
-    score = fields.Integer("Score /10")
+    score = fields.Integer("Điểm AI /10")
     evidence = fields.Text()
     flags = fields.Char()

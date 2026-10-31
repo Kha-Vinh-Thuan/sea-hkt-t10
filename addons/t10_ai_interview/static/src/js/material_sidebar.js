@@ -19,6 +19,22 @@ patch(NavBar.prototype, {
         this.state.ahoLocation = window.location.pathname;
     },
 
+    findAhoMenu(xmlid) {
+        const find = (items) => {
+            for (const item of items || []) {
+                if (item.xmlid === xmlid) {
+                    return item;
+                }
+                const child = find(item.childrenTree);
+                if (child) {
+                    return child;
+                }
+            }
+            return null;
+        };
+        return find(this.currentAppSections);
+    },
+
     isSidebarMenuActive(menu) {
         const path = this.getMenuItemHref(menu).split("?")[0];
         return this.state.ahoLocation === path || this.state.ahoLocation.startsWith(`${path}/`);
