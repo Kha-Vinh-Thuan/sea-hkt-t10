@@ -7,8 +7,10 @@ _spec = importlib.util.spec_from_file_location('rag_matcher_under_test', Path(__
 matcher = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(matcher)
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from rag_filter_application.dto.requests import CandidateDocumentRequest, ScreeningRequest
-from rag_filter_application.services.screening_service import ScreeningService
+from rag_filter_application.dto.requests import (
+    CandidateDocumentRequest, CriterionRequest, DocumentRequest, FilterRequest, ScreeningRequest,
+)
+from rag_filter_application.services.screening_service import FilterService, ScreeningService
 
 REQS = {'job': 'Dev', 'requirements': [{'name': 'Java', 'priority': 'must'}, {'name': 'Docker', 'priority': 'nice'}]}
 
@@ -69,6 +71,30 @@ def test_protected_requirements_are_not_scored():
     with patch.object(matcher, 'chat', side_effect=fake_chat):
         got = matcher.requirements('m', 'jd.pdf', b'%PDF')
     assert got['requirements'] == [{'name': 'Java', 'priority': 'must'}]
+
+def test_filter_service_returns_handoff_and_interview_gaps_without_score():
+    def reviewer(model, criteria, filename, content):
+        return [
+            {'criterion_id': criteria[0]['criterion_id'], 'status': 'supported',
+             'finding': 'Java is explicitly described.', 'evidence': 'Built Java services.', 'limitations': []},
+            {'criterion_id': criteria[1]['criterion_id'], 'status': 'unknown',
+             'finding': 'No evidence was found.', 'evidence': '', 'limitations': ['No profiling example in CV.']},
+        ]
+
+    request = FilterRequest(
+        run_id='run-1', candidate_id='candidate-1', role_id='backend', role_version='v1',
+        criteria=(
+            CriterionRequest('java', 'Java', 'Java backend experience', True),
+            CriterionRequest('profiling', 'Profiling', 'Performance profiling', False),
+        ),
+        documents=(DocumentRequest('cv-1', 'cv.pdf', b'%PDF', 'sha256'),), model='test-model',
+    )
+    handoff = FilterService(reviewer).execute(request)
+    payload = handoff.to_dict()
+    assert handoff.status == 'Complete'
+    assert payload['findings'][0]['status'] == 'supported'
+    assert payload['evidence_gaps'][0]['criterion_id'] == 'profiling'
+    assert 'score' not in payload and 'rank' not in payload
 
 def test_nlayer_request_response_contract():
     def fake_rank(model, jd, cvs):

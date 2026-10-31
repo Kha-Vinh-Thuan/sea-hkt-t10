@@ -6,7 +6,7 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_match" type="object" string="Match &amp; Rank" class="btn-primary"/>
+                    <button name="action_match" type="object" string="Review Evidence" class="btn-primary"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -15,16 +15,17 @@
                         <field name="jd_file" filename="jd_filename"/>
                         <field name="jd_filename" invisible="1"/>
                         <field name="cv_ids" widget="many2many_binary"/>
+                        <field name="role_id"/>
+                        <field name="role_version" readonly="1"/>
                         <field name="job" invisible="not job"/>
                     </group>
                     <notebook>
-                        <page string="Ranking">
+                        <page string="Evidence Review">
                             <field name="result_ids">
                                 <list>
-                                    <field name="rank"/>
                                     <field name="candidate"/>
                                     <field name="file"/>
-                                    <field name="score" widget="progressbar"/>
+                                    <field name="status"/>
                                     <field name="summary"/>
                                     <field name="error" optional="hide"/>
                                 </list>
@@ -32,11 +33,13 @@
                                     <group>
                                         <field name="candidate"/>
                                         <field name="file"/>
-                                        <field name="score" widget="progressbar"/>
+                                        <field name="status"/>
                                         <field name="summary"/>
                                         <field name="matched"/>
                                         <field name="partial"/>
                                         <field name="missing"/>
+                                        <field name="limitations"/>
+                                        <field name="evidence_gaps"/>
                                         <field name="error" invisible="not error"/>
                                     </group>
                                 </form>

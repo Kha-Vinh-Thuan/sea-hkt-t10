@@ -1,3 +1,3 @@
-from .screening_service import ScreeningService
+from .screening_service import FilterService, ScreeningService
 
-__all__ = ['ScreeningService']
+__all__ = ['FilterService', 'ScreeningService']

@@ -1,9 +1,8 @@
-"""CV vs JD matcher. Stdlib only and Odoo-free, so tests/test_matcher.py runs with plain python.
+"""Evidence reviewer. Stdlib only and Odoo-free, so tests/test_matcher.py runs with plain python.
 
-Two steps so every CV is judged against the SAME yardstick:
-1. requirements(): the JD PDF -> fixed list of requirements (must / nice), once per screening.
-2. evaluate(): each CV PDF -> per-requirement verdict (matched / partial / missing) with evidence.
-The match % is computed here from those verdicts, not guessed by the model, so the ranking is reproducible.
+The legacy requirement extractor remains for the Odoo adapter, but the public
+evidence-review flow is ``review()`` against an approved criterion list. It
+returns criterion findings and never ranks or scores candidates.
 PDFs go to OpenAI as file inputs: scanned CVs and multi-column layouts work without local text extraction.
 """
 import base64
@@ -117,6 +116,20 @@ EVAL_SCHEMA = {
     },
 }
 
+REVIEW_SCHEMA = {
+    'type': 'object', 'additionalProperties': False, 'required': ['findings'],
+    'properties': {'findings': {'type': 'array', 'items': {
+        'type': 'object', 'additionalProperties': False,
+        'required': ['criterion_id', 'status', 'finding', 'evidence', 'limitations'],
+        'properties': {
+            'criterion_id': {'type': 'string'},
+            'status': {'type': 'string', 'enum': ['supported', 'partially_supported', 'unknown', 'conflicting', 'not_applicable']},
+            'finding': {'type': 'string'},
+            'evidence': {'type': 'string'},
+            'limitations': {'type': 'array', 'items': {'type': 'string'}},
+        },
+    }}}}
+
 def requirements(model, jd_name, jd_pdf, chat_fn=None):
     chat_fn = chat_fn or chat
     out = chat_fn(model, (
@@ -163,6 +176,32 @@ def evaluate(model, reqs, cv_name, cv_pdf, chat_fn=None):
               'evidence': by_no.get(i, {}).get('evidence', '')} for i, r in enumerate(reqs, 1)]
     return {'candidate': out.get('candidate') or '', 'summary': out.get('summary') or '',
             'score': score(reqs, out['verdicts']), 'items': items}
+
+
+def review(model, criteria, cv_name, cv_pdf, chat_fn=None):
+    """Review an approved criterion list without ranking or suitability scoring."""
+    chat_fn = chat_fn or chat
+    numbered = '\n'.join(
+        f"- {c['criterion_id']}: {c['label']} — {c['description']}"
+        for c in criteria
+    )
+    out = chat_fn(model, (
+        "Review this candidate document against the APPROVED criteria below. Return exactly one finding per "
+        "criterion_id. Use supported only for explicit job-related evidence, partially_supported for related but "
+        "incomplete evidence, unknown when evidence is absent, conflicting when sources disagree, and not_applicable "
+        "only when the criterion truly does not apply. Do not score, rank, recommend, or infer. Evidence must be a "
+        "short quote from the document or explain why it is absent. Preserve candidate self-report as self-report. "
+        f"{NO_PROTECTED} {FAIRNESS_POLICY}"),
+        [{'type': 'text', 'text': 'Approved criteria:\n' + numbered}, _pdf(cv_name, cv_pdf)], REVIEW_SCHEMA)
+    allowed = {c['criterion_id'] for c in criteria}
+    seen = set()
+    findings = []
+    for item in out.get('findings', []):
+        criterion_id = item.get('criterion_id')
+        if criterion_id in allowed and criterion_id not in seen:
+            seen.add(criterion_id)
+            findings.append(item)
+    return findings
 
 def rank(model, jd, cvs, chat_fn=None):
     """jd: (name, pdf bytes); cvs: [(name, pdf bytes)] -> (requirements, results best first).
