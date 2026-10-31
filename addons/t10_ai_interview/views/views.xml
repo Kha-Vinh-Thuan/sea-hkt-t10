@@ -166,6 +166,11 @@
                         <b>Nghi vấn gian lận (<field name="ai_integrity_score" readonly="1" class="d-inline"/>/100):</b>
                         <field name="ai_integrity_summary" readonly="1" class="d-inline"/>
                     </div>
+                    <group string="Bằng chứng để người phụ trách xem xét">
+                        <field name="ai_match_summary" readonly="1" invisible="not ai_match_summary"/>
+                        <field name="ai_verify_claims" readonly="1" invisible="not ai_verify_claims"/>
+                        <field name="ai_human_decision" readonly="1" invisible="not ai_human_decision"/>
+                    </group>
                     <group>
                         <field name="ai_integrity_score" widget="progressbar" readonly="1" invisible="not ai_integrity_summary"/>
                         <field name="ai_integrity_summary" readonly="1" invisible="not ai_integrity_summary"/>
@@ -187,11 +192,6 @@
                             <field name="ai_event_id" readonly="1"/>
                             <field name="ai_reschedule_count" readonly="1"/>
                         </group>
-                    </group>
-                    <group groups="base.group_no_one">
-                        <field name="ai_match_summary" readonly="1" invisible="not ai_match_summary"/>
-                        <field name="ai_verify_claims" readonly="1" invisible="not ai_verify_claims"/>
-                        <field name="ai_human_decision" readonly="1" invisible="not ai_human_decision"/>
                     </group>
                     <field name="ai_log_ids" readonly="1" groups="base.group_no_one">
                         <list>
@@ -239,12 +239,56 @@
     </record>
 
     <!-- ============ AI Pipeline board ============ -->
+    <record id="hr_applicant_list_ai_pipeline" model="ir.ui.view">
+        <field name="name">hr.applicant.list.ai.pipeline</field>
+        <field name="model">hr.applicant</field>
+        <field name="arch" type="xml">
+            <list string="Ứng viên trong quy trình AI" create="0" default_order="write_date desc">
+                <field name="partner_name" string="Ứng viên"/>
+                <field name="job_id" string="Vị trí"/>
+                <field name="stage_id" string="Giai đoạn tuyển dụng"/>
+                <field name="ai_step" string="Bước AI" widget="badge"
+                       decoration-warning="ai_step in ('scheduling', 'no_show', 'reported')"
+                       decoration-danger="ai_step == 'error'"
+                       decoration-success="ai_step == 'decided'"/>
+                <field name="recruiter_id" string="Người phụ trách" widget="many2one_avatar_employee" optional="show"/>
+                <field name="ai_interview_start" string="Lịch phỏng vấn" optional="show"/>
+                <field name="activity_date_deadline" string="Việc tiếp theo" optional="show"/>
+                <field name="ai_recommendation" string="AI đề xuất" widget="badge" optional="hide"/>
+                <field name="talent_pool_ids" string="Talent Pool" widget="many2many_tags" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hr_applicant_search_ai_pipeline" model="ir.ui.view">
+        <field name="name">hr.applicant.search.ai.pipeline</field>
+        <field name="model">hr.applicant</field>
+        <field name="arch" type="xml">
+            <search string="Tìm ứng viên AI">
+                <field name="partner_name" string="Ứng viên"/>
+                <field name="job_id" string="Vị trí"/>
+                <field name="recruiter_id" string="Người phụ trách"/>
+                <filter name="needs_review" string="Cần người duyệt" domain="[('ai_step', '=', 'reported')]"/>
+                <filter name="needs_schedule" string="Cần xử lý lịch" domain="[('ai_step', 'in', ['scheduling', 'no_show'])]"/>
+                <filter name="needs_retry" string="Lỗi AI" domain="[('ai_step', '=', 'error')]"/>
+                <filter name="decided" string="Đã quyết định" domain="[('ai_step', '=', 'decided')]"/>
+                <group>
+                    <filter name="group_ai_step" string="Bước AI" context="{'group_by': 'ai_step'}"/>
+                    <filter name="group_stage" string="Giai đoạn tuyển dụng" context="{'group_by': 'stage_id'}"/>
+                    <filter name="group_job" string="Vị trí" context="{'group_by': 'job_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
     <record id="action_ai_pipeline" model="ir.actions.act_window">
         <field name="name">Ứng viên trong quy trình AI</field>
         <field name="res_model">hr.applicant</field>
         <field name="view_mode">list,kanban,form,pivot,graph</field>
+        <field name="view_id" ref="hr_applicant_list_ai_pipeline"/>
+        <field name="search_view_id" ref="hr_applicant_search_ai_pipeline"/>
         <field name="domain">[('ai_step', '!=', False)]</field>
-        <field name="context">{'group_by': 'ai_step'}</field>
+        <field name="context">{}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Chưa có ứng viên trong quy trình AI</p>
             <p>Mở một vị trí tuyển dụng, bật Thiết lập AI, rồi chọn Thêm CV.</p>
