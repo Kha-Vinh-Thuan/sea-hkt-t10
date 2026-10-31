@@ -56,8 +56,8 @@
             </span>
         </xpath>
         <xpath expr="//button[hasclass('o_switch_view')]" position="attributes">
-            <attribute name="t-att-data-tooltip">this.env.searchModel?.context?.aho_pipeline ? (view.type === 'kanban' ? 'Thẻ' : 'Danh sách') : view.name</attribute>
-            <attribute name="t-att-aria-label">this.env.searchModel?.context?.aho_pipeline ? (view.type === 'kanban' ? 'Thẻ' : 'Danh sách') : view.name + ' View'</attribute>
+            <attribute name="t-att-data-tooltip">this.env.searchModel?.context?.aho_pipeline and ['kanban', 'list'].includes(view.type) ? (view.type === 'kanban' ? 'Thẻ' : 'Danh sách') : view.name</attribute>
+            <attribute name="t-att-aria-label">this.env.searchModel?.context?.aho_pipeline and ['kanban', 'list'].includes(view.type) ? (view.type === 'kanban' ? 'Thẻ' : 'Danh sách') : view.name + ' View'</attribute>
         </xpath>
     </t>
 </templates>

@@ -34,4 +34,21 @@
     <record id="hr_recruitment.action_hr_job" model="ir.actions.act_window">
         <field name="name">Tuyển dụng</field><field name="context">{'aho_pipeline': True}</field>
     </record>
+    <!-- Preserve the native job context while using the same tracking views. -->
+    <record id="hr_recruitment.action_hr_job_applications" model="ir.actions.act_window">
+        <field name="name">Theo dõi ứng viên</field>
+        <field name="view_mode">kanban,list,form</field>
+    </record>
+    <record id="job_applicant_kanban_view" model="ir.actions.act_window.view">
+        <field name="sequence">0</field>
+        <field name="view_mode">kanban</field>
+        <field name="view_id" ref="hr_recruitment.hr_kanban_view_applicant"/>
+        <field name="act_window_id" ref="hr_recruitment.action_hr_job_applications"/>
+    </record>
+    <record id="job_applicant_list_view" model="ir.actions.act_window.view">
+        <field name="sequence">1</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="applicant_tracking_list"/>
+        <field name="act_window_id" ref="hr_recruitment.action_hr_job_applications"/>
+    </record>
 </odoo>
