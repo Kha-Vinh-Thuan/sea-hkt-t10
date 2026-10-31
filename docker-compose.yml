@@ -50,6 +50,7 @@ services:
       - ./addons/hr_work_entry:/usr/lib/python3/dist-packages/odoo/addons/hr_work_entry
       - ./addons/rag_interview_agent:/mnt/extra-addons/rag_interview_agent
       - ./addons/rag_filter_agent:/mnt/extra-addons/rag_filter_agent
+      - ./addons/aho_recruitment_ui:/mnt/extra-addons/aho_recruitment_ui
 
 volumes:
   db-data:
