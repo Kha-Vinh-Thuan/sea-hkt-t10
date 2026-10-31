@@ -17,11 +17,13 @@
                             <field name="applicant_id" readonly="1"/>
                             <field name="job_id"/>
                             <field name="url" widget="CopyClipboardChar" invisible="state not in ('ready', 'running')"/>
-                            <field name="max_questions" readonly="state != 'ready'"/>
+                            <field name="max_topics" readonly="state != 'ready'"/>
+                            <field name="max_probes" readonly="state != 'ready'"/>
                         </group>
                         <group>
                             <field name="score" invisible="state != 'reported'"/>
                             <field name="recommendation" invisible="state != 'reported'"/>
+                            <field name="cv_consistency" invisible="state != 'reported'"/>
                             <field name="flags" invisible="not flags"/>
                             <field name="error" invisible="not error"/>
                         </group>
@@ -30,6 +32,7 @@
                         <page string="Report" invisible="state != 'reported'">
                             <group>
                                 <field name="summary"/>
+                                <field name="screening"/>
                                 <field name="strengths"/>
                                 <field name="concerns"/>
                                 <field name="cv_claims"/>
@@ -38,6 +41,8 @@
                         <page string="Transcript">
                             <field name="turn_ids" readonly="1">
                                 <list>
+                                    <field name="topic_no"/>
+                                    <field name="topic"/>
                                     <field name="question"/>
                                     <field name="answer"/>
                                     <field name="score"/>
@@ -62,6 +67,7 @@
                 <field name="state"/>
                 <field name="score"/>
                 <field name="recommendation"/>
+                <field name="cv_consistency"/>
                 <field name="create_date"/>
             </list>
         </field>
