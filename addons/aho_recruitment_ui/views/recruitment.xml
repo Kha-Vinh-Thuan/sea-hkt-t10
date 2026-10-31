@@ -7,19 +7,34 @@
             <xpath expr="//t[@t-name='card']" position="replace">
                 <t t-name="card">
                     <main class="aho-job-card">
-                        <div class="aho-job-heading"><div><div class="aho-job-title"><field name="name"/></div><div class="aho-job-meta"><field name="department_id"/></div></div><field name="is_favorite" widget="boolean_favorite" nolabel="1"/></div>
-                        <div class="aho-job-meta"><field name="recruiter_id" widget="many2one_avatar_employee" options="{'display_avatar_name': True}"/></div>
+                        <div class="aho-job-heading">
+                            <div class="aho-job-title"><field name="name"/></div>
+                            <field name="is_favorite" widget="boolean_favorite" nolabel="1"/>
+                        </div>
+                        <div class="aho-job-tags">
+                            <span t-if="record.department_id.raw_value" class="aho-job-tag"><i class="fa fa-sitemap" aria-hidden="true"/><field name="department_id"/></span>
+                            <span t-if="record.address_id.raw_value" class="aho-job-tag"><i class="fa fa-map-marker" aria-hidden="true"/><field name="address_id"/></span>
+                            <span t-if="record.employee_type_id.raw_value" class="aho-job-tag"><i class="fa fa-clock-o" aria-hidden="true"/><field name="employee_type_id"/></span>
+                        </div>
+                        <p t-if="record.aho_jd_excerpt.raw_value" class="aho-job-summary"><field name="aho_jd_excerpt"/></p>
+                        <p t-else="" class="aho-job-summary aho-job-summary-empty">Chưa có JD. Agent phỏng vấn cần JD và yêu cầu để đặt câu hỏi.</p>
                         <div class="aho-job-counts" groups="hr_recruitment.group_hr_recruitment_interviewer">
                             <div><strong><field name="new_application_count"/></strong><span>Hồ sơ mới</span></div>
-                            <div><strong><field name="open_application_count"/></strong><span>Đang tuyển</span></div>
-                            <div><strong><field name="no_of_recruitment"/></strong><span>Chỉ tiêu</span></div>
+                            <div><strong><field name="open_application_count"/></strong><span>Đang xử lý</span></div>
+                            <div><strong><field name="no_of_recruitment"/></strong><span>Cần tuyển</span></div>
                         </div>
-                        <field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
+                        <div class="aho-job-footer">
+                            <div class="aho-job-owner" t-if="record.recruiter_id?.raw_value"><field name="recruiter_id" widget="many2one_avatar_employee" options="{'display_avatar_name': True}"/></div>
+                            <button t-if="record.activity_count?.raw_value" name="action_open_activities" type="object" class="btn btn-link aho-job-todo" groups="hr_recruitment.group_hr_recruitment_interviewer"
+                                    title="Các việc đã lên lịch trên hồ sơ ứng viên của vị trí này">
+                                <i class="fa fa-clock-o" aria-hidden="true"/> <field name="activity_count"/> việc cần xử lý
+                            </button>
+                        </div>
                         <div class="aho-job-actions">
                             <button name="%(hr_recruitment.action_hr_job_applications)d" type="action" class="btn btn-primary">Xem ứng viên</button>
-                            <button type="open" class="btn btn-secondary">Yêu cầu tuyển dụng</button>
-                            <button name="action_open_activities" type="object" class="btn btn-link" groups="hr_recruitment.group_hr_recruitment_interviewer">Công việc</button>
+                            <button type="open" class="btn btn-secondary">JD và yêu cầu</button>
                         </div>
+                        <field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
                     </main>
                 </t>
             </xpath>
@@ -37,7 +52,7 @@
     <!-- Preserve the native job context while using the same tracking views. -->
     <record id="hr_recruitment.action_hr_job_applications" model="ir.actions.act_window">
         <field name="name">Theo dõi ứng viên</field>
-        <field name="view_mode">kanban,list,form</field>
+        <field name="view_mode">kanban,list,form,graph,calendar,pivot,activity</field>
     </record>
     <record id="job_applicant_kanban_view" model="ir.actions.act_window.view">
         <field name="sequence">0</field>
@@ -51,4 +66,31 @@
         <field name="view_id" ref="applicant_tracking_list"/>
         <field name="act_window_id" ref="hr_recruitment.action_hr_job_applications"/>
     </record>
+    <!-- Company background the interview agent reads (res.company.rag_background). Opens the current company. -->
+    <record id="action_company_ai_context" model="ir.actions.server">
+        <field name="name">Thông tin công ty cho AI</field>
+        <field name="model_id" ref="base.model_res_company"/>
+        <field name="state">code</field>
+        <field name="code">action = {'type': 'ir.actions.act_window', 'name': 'Thông tin công ty cho AI', 'res_model': 'res.company', 'res_id': env.company.id, 'view_mode': 'form', 'views': [(env.ref('aho_recruitment_ui.company_ai_context_form').id, 'form')], 'target': 'current'}</field>
+    </record>
+    <record id="company_ai_context_form" model="ir.ui.view">
+        <field name="name">res.company.aho.ai.context</field>
+        <field name="model">res.company</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <form string="Thông tin công ty cho AI" create="0" delete="0">
+                <sheet>
+                    <h1><field name="name" readonly="1"/></h1>
+                    <p class="text-muted">Agent phỏng vấn đọc nội dung này cùng JD, yêu cầu của vị trí và CV ứng viên để đặt câu hỏi và viết báo cáo.</p>
+                    <field name="rag_background" nolabel="1" placeholder="Sứ mệnh, sản phẩm, văn hoá, cách làm việc, đội ngũ..."/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <menuitem id="menu_company_ai_context" name="Thông tin công ty cho AI" parent="hr_recruitment.menu_hr_recruitment_configuration"
+              action="action_company_ai_context" sequence="2" groups="base.group_erp_manager"/>
+
+    <!-- Core "Stages" menu is debug-only; expose the same action to recruitment managers. -->
+    <menuitem id="menu_pipeline_setup" name="Quy trình tuyển dụng" parent="hr_recruitment.menu_hr_recruitment_config_jobs"
+              action="hr_recruitment.hr_recruitment_stage_act" sequence="1" groups="hr_recruitment.group_hr_recruitment_manager"/>
 </odoo>

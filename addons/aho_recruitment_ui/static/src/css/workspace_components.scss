@@ -1,5 +1,7 @@
-/* Shared recruitment components, including Odoo dialogs rendered outside the action manager.
-   Keep native structure, controls, validation, drag targets, and event handlers intact. */
+/* Shared recruitment components: the only place for buttons, badges, cards, lists, forms,
+   kanban columns and the page header. Layout of the navigation lives in material_sidebar.scss.
+   Keep native Odoo structure, controls, validation, drag targets and event handlers intact. */
+
 body:has(.aho-sidebar-brand) {
     .o_web_client, .o_dialog, .o_popover {
         font-family: var(--aho-font);
@@ -8,7 +10,8 @@ body:has(.aho-sidebar-brand) {
     }
 
     .o_action_manager, .o_dialog {
-        .btn:not(.rounded-circle) {
+        /* ---------- Buttons (kit: Buttons, Size=Medium) ---------- */
+        .btn:not(.rounded-circle):not(.o_arrow_button) {
             border-radius: var(--aho-radius);
             font-weight: 500;
             box-shadow: none;
@@ -18,36 +21,61 @@ body:has(.aho-sidebar-brand) {
             --btn-border-color: var(--aho-primary);
             --btn-hover-bg: var(--aho-primary-hover);
             --btn-hover-border-color: var(--aho-primary-hover);
-            color: #fff;
+            --btn-active-bg: var(--aho-primary-hover);
+            color: var(--aho-on-primary);
             background: var(--aho-primary);
             border-color: var(--aho-primary);
         }
         .btn-primary:hover:not(:disabled) {
+            color: var(--aho-on-primary);
             background: var(--aho-primary-hover);
             border-color: var(--aho-primary-hover);
         }
-        .btn-secondary, .btn-outline-secondary {
+        /* kit: Hierarchy=Secondary Border */
+        .btn-secondary:not(.o_arrow_button), .btn-outline-secondary, .btn-outline-primary {
             color: var(--aho-ink);
-            background: #fff;
-            border-color: var(--aho-outline);
+            background: var(--aho-card);
+            border-color: var(--aho-outline-action);
         }
-        .btn-secondary:hover:not(:disabled), .btn-outline-secondary:hover:not(:disabled) {
-            background: var(--aho-primary-container);
-            border-color: #b5bac2;
-        }
+        .btn-secondary:not(.o_arrow_button):hover:not(:disabled),
+        .btn-outline-secondary:hover:not(:disabled),
+        .btn-outline-primary:hover:not(:disabled),
         .btn-secondary.active, .btn-outline-secondary.active {
-            background: var(--aho-primary-container);
-            border-color: #b5bac2;
+            color: var(--aho-ink);
+            background: var(--aho-selected);
+            border-color: var(--aho-outline-action);
         }
-        .btn-link { color: var(--aho-ink); }
+        /* kit: Hierarchy=Link / Tertiary */
+        .btn-link { color: var(--aho-ink); font-weight: 500; }
+        .btn-link:hover { color: var(--aho-muted); }
         .btn:focus-visible, .o_input:focus-visible {
             outline: 2px solid var(--aho-accent);
             outline-offset: 2px;
         }
+
+        /* ---------- Badges (kit: Badge, Type=Contained, Size=Small) ---------- */
+        .badge {
+            padding: 3px 8px;
+            border-radius: var(--aho-radius);
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.4;
+            white-space: normal;
+            text-align: left;
+            color: var(--aho-grey-fg);
+            background: var(--aho-grey-bg);
+        }
+        .badge.text-bg-success, .badge.bg-success { color: var(--aho-green-fg) !important; background: var(--aho-green-bg) !important; }
+        .badge.text-bg-info, .badge.bg-info       { color: var(--aho-blue-fg) !important;  background: var(--aho-blue-bg) !important; }
+        .badge.text-bg-warning, .badge.bg-warning { color: var(--aho-yellow-fg) !important; background: var(--aho-yellow-bg) !important; }
+        .badge.text-bg-danger, .badge.bg-danger   { color: var(--aho-red-fg) !important;   background: var(--aho-red-bg) !important; }
+        .badge.text-bg-primary, .badge.bg-primary { color: var(--aho-purple-fg) !important; background: var(--aho-purple-bg) !important; }
+
+        /* ---------- Search, forms, tabs ---------- */
         .o_searchview {
             border: 1px solid var(--aho-outline);
             border-radius: var(--aho-radius);
-            background: #fff;
+            background: var(--aho-card);
             box-shadow: none;
         }
         .o_form_view .o_form_sheet {
@@ -55,13 +83,12 @@ body:has(.aho-sidebar-brand) {
             border-radius: var(--aho-card-radius);
             box-shadow: none;
         }
-        .o_form_label { color: #565c65; font-weight: 500; }
-        .o_form_view .o_input:not([readonly]):not([disabled]) {
-            border-color: #cbd0d7;
-        }
-        .o_notebook .nav-tabs { border-bottom: 1px solid var(--aho-outline); gap: 16px; }
+        .o_form_label { color: var(--aho-muted); font-weight: 500; }
+        .o_form_view .o_input:not([readonly]):not([disabled]) { border-color: var(--aho-outline); }
+        /* kit: Tab / Outline Tabs */
+        .o_notebook .nav-tabs { border-bottom: 1px solid var(--aho-outline); gap: var(--aho-space-2); }
         .o_notebook .nav-link {
-            padding: 12px 2px;
+            padding: 12px var(--aho-space-4);
             border: 0;
             border-bottom: 2px solid transparent;
             border-radius: 0;
@@ -70,187 +97,247 @@ body:has(.aho-sidebar-brand) {
             font-weight: 500;
         }
         .o_notebook .nav-link.active {
-            border-bottom-color: var(--aho-primary);
+            border-bottom-color: var(--aho-ink);
             color: var(--aho-ink);
             background: transparent;
         }
-        .o_list_table {
-            --table-hover-bg: #f8f9fb;
+        .alert-info {
             color: var(--aho-ink);
-            th { color: #697078; font-weight: 500; background: #f8f9fb; }
-            td, th { border-color: #edf0f2; }
+            border: 1px solid var(--aho-outline);
+            border-radius: var(--aho-radius);
+            background: var(--aho-sidebar-bg);
         }
-        // Nested history tables should not inherit the outer list's page margins.
+
+        /* ---------- Tables (kit: Table / Header, Rows) ---------- */
+        .o_list_table {
+            --table-hover-bg: var(--aho-sidebar-bg);
+            color: var(--aho-ink);
+            th { color: var(--aho-muted); font-weight: 500; background: var(--aho-sidebar-bg); }
+            td, th { border-color: var(--aho-outline); }
+        }
         .o_form_view .o_field_one2many .o_list_renderer {
             margin: 0;
+            border: 1px solid var(--aho-outline);
             border-radius: var(--aho-radius);
             box-shadow: none;
         }
+
+        /* ---------- Cards ---------- */
         .o_kanban_renderer {
             background: var(--aho-surface);
             .o_kanban_record:not(.o_kanban_ghost) {
                 border: 1px solid var(--aho-outline);
                 border-radius: var(--aho-card-radius);
-                box-shadow: 0 1px 2px #10182805;
-                background: #fff;
+                box-shadow: none;
+                background: var(--aho-card);
             }
-            .o_kanban_record:not(.o_kanban_ghost):hover {
-                border-color: #bfc6cf;
-            }
-            .o_kanban_header_title { color: var(--aho-ink); font-weight: 600; }
+            .o_kanban_record:not(.o_kanban_ghost):hover { border-color: var(--aho-outline-strong); }
         }
     }
+
+    /* ---------- Dialogs ---------- */
     .o_dialog .modal-content {
         border: 1px solid var(--aho-outline);
         border-radius: var(--aho-card-radius);
-        box-shadow: 0 16px 48px #1018281f;
-        background: #fff;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, .12);
+        background: var(--aho-card);
     }
-    .o_dialog .modal-header, .o_dialog .modal-footer {
-        border-color: var(--aho-outline);
-        background: #fff;
+    .o_dialog .modal-header, .o_dialog .modal-footer { border-color: var(--aho-outline); background: var(--aho-card); }
+    .o_dialog .modal-title { font-weight: 500; font-size: 20px; }
+
+    /* ---------- Page header (kit: Header / Section Header) ---------- */
+    .o_action_manager .o_control_panel {
+        padding: var(--aho-space-4) var(--aho-space-6);
+        border-bottom: 1px solid var(--aho-outline);
+        background: var(--aho-card);
+        .o_breadcrumb .active, .o_last_breadcrumb_item { font-size: 24px !important; font-weight: 500; line-height: 1.2; color: var(--aho-ink); }
+        .o_breadcrumb .breadcrumb-item:not(.active) a { color: var(--aho-muted); }
+        /* View switcher as outline tabs */
+        .o_cp_switch_buttons {
+            gap: var(--aho-space-1);
+            .o_switch_view {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                white-space: nowrap;
+                border: 0;
+                border-bottom: 2px solid transparent;
+                border-radius: 0;
+                background: transparent;
+                color: var(--aho-muted);
+                padding: 6px var(--aho-space-3);
+            }
+            .o_switch_view:hover { color: var(--aho-ink); background: transparent; }
+            .o_switch_view.active { color: var(--aho-ink); border-bottom-color: var(--aho-ink); background: transparent; }
+        }
     }
-    .o_dialog .modal-title { font-weight: 600; font-size: 18px; }
+    .o_action_manager .o_content,
+    .o_action_manager .o_form_view .o_form_sheet_bg { background: var(--aho-surface); }
+    .o_action_manager .o_list_renderer {
+        margin: var(--aho-space-5) var(--aho-space-6);
+        overflow: auto;
+        border: 1px solid var(--aho-outline);
+        border-radius: var(--aho-card-radius);
+        background: var(--aho-card);
+    }
+
+    /* ---------- Applicant card content ---------- */
+    .aho-candidate-ai {
+        display: flex;
+        flex-direction: column;
+        gap: var(--aho-space-2);
+        margin: var(--aho-space-3) 0;
+        font-size: 12px;
+        line-height: 1.4;
+        color: var(--aho-ink);
+    }
+    .aho-card-label { color: var(--aho-muted); font-size: 12px; font-weight: 500; }
+    .aho-candidate-status, .aho-candidate-owner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--aho-space-1) var(--aho-space-2);
+    }
+    .aho-candidate-next {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: var(--aho-space-2) 10px;
+        border-radius: var(--aho-radius);
+        background: var(--aho-sidebar-bg);
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    /* ---------- Job card ---------- */
+    .aho-job-card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--aho-space-3);
+        padding: var(--aho-space-2);
+        .aho-job-heading { display: flex; align-items: start; justify-content: space-between; gap: var(--aho-space-3); }
+        .aho-job-title { font-size: 16px; line-height: 1.4; font-weight: 500; color: var(--aho-ink); }
+        .aho-job-tags { display: flex; flex-wrap: wrap; gap: var(--aho-space-1) var(--aho-space-2); }
+        .aho-job-tags:empty { display: none; }
+        .aho-job-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px var(--aho-space-2);
+            border-radius: var(--aho-radius);
+            color: var(--aho-grey-fg);
+            background: var(--aho-grey-bg);
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.6;
+            .fa { color: var(--aho-muted); }
+        }
+        .aho-job-summary {
+            display: -webkit-box;
+            margin: 0;
+            overflow: hidden;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            color: var(--aho-muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .aho-job-summary-empty { font-style: italic; }
+        .aho-job-counts {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--aho-space-3);
+            padding: var(--aho-space-3) 0;
+            border-block: 1px solid var(--aho-outline);
+        }
+        .aho-job-counts > div { display: flex; flex-direction: column; gap: 2px; }
+        .aho-job-counts strong, .aho-job-counts strong .o_field_widget { font-size: 20px; font-weight: 500; line-height: 1.2; }
+        .aho-job-counts > div > span { font-size: 12px; color: var(--aho-muted); }
+        .aho-job-footer {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--aho-space-2);
+            min-height: 24px;
+            font-size: 13px;
+            color: var(--aho-muted);
+        }
+        .aho-job-footer:empty { display: none; }
+        .aho-job-todo { padding: 0; font-size: 13px; color: var(--aho-yellow-fg); }
+        .aho-job-todo:hover { color: var(--aho-ink); }
+        .aho-job-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--aho-space-2); }
+        .aho-job-actions .btn { width: 100%; white-space: nowrap; }
+    }
+
+    /* ---------- Wide applicant list ---------- */
+    .aho-applicant-tracking-list {
+        .o_list_table { min-width: 1060px; }
+        .o_data_cell:is([name="partner_name"], [name="job_id"], [name="aho_next_action"], [name="aho_interview_state"]) {
+            white-space: normal !important;
+            text-overflow: clip !important;
+            .o_field_widget, .badge { white-space: normal; }
+        }
+        .o_data_cell[name="partner_name"] { min-width: 150px; }
+        .o_data_cell[name="job_id"] { min-width: 170px; }
+        .o_data_cell[name="aho_next_action"] { min-width: 240px; }
+    }
 }
 
-body:has(.aho-sidebar-brand) {
-    .o_navbar_apps_menu > .dropdown-toggle {
-        color: var(--aho-muted) !important;
-        background: transparent !important;
-    }
-    .o_action_manager .btn-outline-primary {
-        color: var(--aho-primary);
-        border-color: #b5bac2;
-        background: #fff;
-    }
-    .o_action_manager .btn-outline-primary:hover {
-        background: var(--aho-primary-container);
-    }
-    .o_action_manager .alert-info {
-        color: #384454;
-        border-color: var(--aho-outline);
-        background: #f4f6f8;
+/* ---------- Kanban grid and columns ---------- */
+@media screen and (min-width: 992px) {
+    body:has(.aho-sidebar-brand) {
+        .o_kanban_renderer .o_kanban_record { height: auto; min-height: 0; }
+        /* Ungrouped cards (job positions) use one grid size everywhere */
+        .o_kanban_renderer.o_kanban_ungrouped {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: var(--aho-space-4);
+            align-content: start;
+            align-items: start;
+            padding: var(--aho-space-5) var(--aho-space-6);
+            .o_kanban_record { width: 100%; min-width: 0 !important; margin: 0; }
+            .o_kanban_ghost { display: none; }
+        }
+        /* Grouped pipeline: kit Contact (Kanban) columns */
+        .o_kanban_renderer.o_kanban_grouped { padding: var(--aho-space-5) var(--aho-space-6); gap: var(--aho-space-4); }
+        .o_kanban_applicant .o_kanban_group:not(.o_column_folded) {
+            flex: 0 0 clamp(280px, calc((100vw - var(--aho-sidebar-width) - 112px) / 3), 400px);
+            width: auto;
+            min-width: 0;
+            padding: var(--aho-space-3);
+            border: 1px solid var(--aho-outline);
+            border-radius: var(--aho-card-radius);
+            background: var(--aho-card);
+        }
+        .o_kanban_applicant .o_kanban_group .o_kanban_record { width: 100%; max-width: none; margin-bottom: var(--aho-space-3); }
+        .o_kanban_group .o_kanban_header_title {
+            color: var(--aho-ink);
+            font-size: 14px;
+            font-weight: 500;
+        }
     }
 }
 
-// Odoo chooses the side chatter from viewport width, without subtracting our sidebar.
-// Stack it below the profile at laptop widths so fields and history remain readable.
+/* Odoo picks the side chatter from viewport width without subtracting our sidebar.
+   Stack it below the profile at laptop widths so fields and history stay readable. */
 @media screen and (min-width: 992px) and (max-width: 1599px) {
     body:has(.aho-sidebar-brand) .o_action_manager {
-        .o_form_renderer:has(> .o-mail-Form-chatter.o-aside) {
-            flex-direction: column !important;
-            overflow-y: auto;
-        }
+        .o_form_renderer:has(> .o-mail-Form-chatter.o-aside) { flex-direction: column !important; overflow-y: auto; }
         .o_form_sheet_bg:has(+ .o-mail-Form-chatter.o-aside) {
             flex: 1 0 auto;
             width: 100%;
             overflow: visible;
-            --formView-sheetBg-padding-right: 24px;
-            --formView-sheetBg-padding-left: 24px;
+            --formView-sheetBg-padding-right: var(--aho-space-5);
+            --formView-sheetBg-padding-left: var(--aho-space-5);
         }
         .o-mail-Form-chatter.o-aside {
             flex: 1 0 auto;
             width: 100%;
             max-width: 1120px;
             min-height: 280px;
-            padding: 16px 24px 24px;
+            padding: var(--aho-space-4) var(--aho-space-5) var(--aho-space-5);
             border-top: 1px solid var(--aho-outline);
         }
     }
 }
-
-@media screen and (min-width: 992px) {
-    .o_web_client:has(> .o_navbar .aho-sidebar-brand) {
-        .aho-sidebar-toggle {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex: 0 0 auto;
-            margin: 0 4px 12px;
-            padding: 6px 10px;
-            border: 1px solid var(--aho-outline);
-            border-radius: var(--aho-radius);
-            color: var(--aho-muted);
-            background: #fff;
-            font-size: 12px;
-            min-height: 32px;
-        }
-        .aho-sidebar-toggle:hover { background: var(--aho-primary-container); color: var(--aho-ink); }
-        .aho-sidebar-toggle:focus-visible { outline: 2px solid var(--aho-accent); outline-offset: 2px; }
-        > .o_navbar.aho-sidebar-collapsed {
-            flex-basis: 56px;
-            width: 56px;
-            .o_main_navbar { padding: 0 6px 8px; }
-            .aho-sidebar-brand, .aho-sidebar-menu, .aho-sidebar-footnote,
-            .aho-sidebar-toggle > span { display: none; }
-            .o_navbar_apps_menu { position: static; margin: 16px auto 12px; }
-            .aho-sidebar-toggle { margin-top: 16px !important; justify-content: center; padding: 6px; margin: 0 auto 12px; width: 32px; }
-            .o_menu_systray {
-                margin-top: auto !important;
-                display: flex;
-                flex-direction: column;
-                padding: 8px 0 0;
-                .o_user_menu { padding: 6px !important; width: auto; }
-                .oe_topbar_name { display: none !important; }
-            }
-        }
-        .o_kanban_renderer .o_kanban_record {
-            height: auto;
-            min-height: 0;
-        }
-        .o_kanban_renderer.o_kanban_ungrouped {
-            display: grid !important;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 16px;
-            align-content: start;
-            align-items: start;
-            padding: 20px 24px;
-            .o_kanban_record { width: 100%; min-width: 0 !important; margin: 0; }
-            .o_kanban_ghost { display: none; }
-        }
-    }
-}
-
-body:has(.aho-sidebar-brand) {
-    .o_main_navbar > .o_menu_systray > .dropdown-toggle {
-        background: transparent;
-        color: var(--aho-muted);
-    }
-    .aho-applicant-tracking-list .o_data_cell:is([name="partner_name"], [name="job_id"], [name="aho_next_action"], [name="aho_interview_state"]) {
-        white-space: normal !important;
-        text-overflow: clip !important;
-        .o_field_widget, .badge { white-space: normal; }
-    }
-    .aho-applicant-tracking-list .o_data_cell[name="partner_name"] { min-width: 150px; }
-    .aho-applicant-tracking-list .o_data_cell[name="job_id"] { min-width: 170px; }
-    .aho-applicant-tracking-list .o_data_cell[name="aho_next_action"] { min-width: 240px; }
-}
-@media screen and (min-width: 992px) {
-    .o_web_client:has(> .aho-sidebar-collapsed) { --aho-sidebar-width: 56px; }
-    body:has(.aho-sidebar-brand) .o_kanban_applicant {
-        .o_kanban_group:not(.o_column_folded) {
-            flex: 0 0 clamp(280px, calc((100vw - var(--aho-sidebar-width) - 72px) / 3), 440px);
-            width: auto;
-        }
-        .o_kanban_group .o_kanban_record { width: 100%; max-width: none; }
-    }
-}
-
-body:has(.aho-sidebar-brand) .aho-job-card {
-    display: flex; flex-direction: column; gap: 16px; padding: 8px;
-    .aho-job-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
-    .aho-job-title { font-size: 18px; line-height: 1.4; font-weight: 600; color: var(--aho-ink); }
-    .aho-job-meta { color: var(--aho-muted); font-size: 13px; }
-    .aho-job-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px 0; border-block: 1px solid var(--aho-outline); }
-    .aho-job-counts > div { display: flex; flex-direction: column; gap: 4px; }
-    .aho-job-counts strong, .aho-job-counts strong .o_field_widget { font-size: 22px; font-weight: 600; }
-    .aho-job-counts > div > span { font-size: 12px; color: var(--aho-muted); }
-    .aho-job-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-}
-
-@media screen and (min-width: 992px) {
-    body:has(.aho-sidebar-brand) .o_kanban_renderer:has(.aho-job-card) {
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    }
-}
-body:has(.aho-sidebar-brand) .aho-job-counts strong .o_field_widget { font-size: 22px !important; }
