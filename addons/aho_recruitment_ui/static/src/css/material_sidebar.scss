@@ -115,30 +115,6 @@
             display: none !important;
         }
 
-        /* Keep Odoo's app switcher available without adding another project menu item. */
-        .o_main_navbar > .o_navbar_apps_menu {
-            position: absolute;
-            top: 26px;
-            right: 12px;
-            z-index: 2;
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            min-width: 32px;
-            height: 32px;
-            border: 1px solid var(--aho-outline);
-            border-radius: 8px;
-            color: var(--aho-muted);
-            background: #fff;
-        }
-
-        .o_main_navbar > .o_navbar_apps_menu:hover {
-            color: var(--aho-primary);
-            border-color: #b7c7ff;
-            background: var(--aho-primary-container);
-        }
-
         .aho-sidebar-brand {
             display: block;
             flex: 0 0 auto;
@@ -392,5 +368,77 @@
 @media (prefers-reduced-motion: reduce) {
     .aho-sidebar-link {
         transition: none;
+    }
+}
+
+/* Keep the same three destinations available below the desktop breakpoint. */
+@media screen and (max-width: 991.98px) {
+    .o_web_client:has(> .o_navbar .aho-sidebar-brand) {
+        font-family: var(--aho-font);
+        color: var(--aho-ink);
+        background: var(--aho-surface);
+
+        > .o_navbar { position: relative; flex: 0 0 auto; border-bottom: 1px solid var(--aho-outline); }
+        .o_main_navbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            height: auto;
+            min-height: 56px;
+            padding: 8px 12px;
+            gap: 8px;
+            background: var(--aho-card);
+            color: var(--aho-ink);
+        }
+        .o_main_navbar > .o_menu_brand,
+        .o_main_navbar > .o_navbar_breadcrumbs,
+        .o_main_navbar > .o_menu_sections { display: none !important; }
+        .aho-sidebar-brand { display: block; order: 0; flex: 1 1 auto; min-width: 0; }
+        .aho-brand-link { display: flex; align-items: center; gap: 8px; color: var(--aho-ink); text-decoration: none; }
+        .aho-brand-link img { width: 32px; height: 32px; }
+        .aho-brand-copy { display: flex; flex-direction: column; font-size: 12px; line-height: 1.15; }
+        .aho-brand-caption, .aho-sidebar-section-label, .aho-sidebar-footnote { display: none; }
+        .aho-sidebar-toggle {
+            display: flex;
+            order: 1;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            min-height: 40px;
+            padding: 8px;
+            border: 1px solid var(--aho-outline);
+            border-radius: var(--aho-radius);
+            background: var(--aho-card);
+            color: var(--aho-ink);
+        }
+        .aho-sidebar-toggle > span { display: none; }
+        .o_main_navbar > .o_menu_systray { order: 2; margin-left: 0 !important; color: var(--aho-muted); }
+        .o_menu_systray :is(.dropdown-toggle, .o_nav_entry) { color: var(--aho-muted); background: transparent; }
+        .aho-sidebar-menu {
+            display: grid;
+            order: 3;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 4px;
+            flex: 1 0 100%;
+            width: 100%;
+            padding-top: 8px;
+            border-top: 1px solid var(--aho-outline);
+        }
+        .aho-sidebar-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 40px;
+            padding: 8px 4px;
+            border-radius: var(--aho-radius);
+            color: var(--aho-muted);
+            font-size: 12px;
+            text-decoration: none;
+        }
+        .aho-sidebar-link.aho-active { color: var(--aho-ink); background: var(--aho-primary-container); font-weight: 600; }
+        .aho-sidebar-link:focus-visible, .aho-sidebar-toggle:focus-visible { outline: 2px solid var(--aho-accent); outline-offset: 2px; }
+        > .o_navbar.aho-sidebar-collapsed .aho-sidebar-menu { display: none; }
+        .o_kanban_renderer.o_kanban_ungrouped .o_kanban_record { min-width: 0 !important; width: 100%; }
     }
 }
