@@ -16,6 +16,68 @@
     display: none;
 }
 
+.o_kanban_applicant {
+    .o_kanban_record:has(.aho-candidate-ai) {
+        margin-bottom: 12px;
+        border: 1px solid var(--aho-outline);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(24, 51, 100, .035);
+    }
+
+    .aho-candidate-ai {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin: 12px 0;
+        color: var(--aho-ink);
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .aho-card-label {
+        color: var(--aho-muted);
+        font-size: 11px;
+        font-weight: 500;
+    }
+
+    .aho-candidate-status,
+    .aho-candidate-owner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 8px;
+    }
+
+    .aho-candidate-status .badge {
+        max-width: 100%;
+        white-space: normal;
+        text-align: left;
+    }
+
+    .aho-candidate-next {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 8px 10px;
+        border-left: 2px solid var(--aho-primary);
+        border-radius: 0 6px 6px 0;
+        background: #f3f6ff;
+    }
+
+    .aho-candidate-scores {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px 12px;
+        padding-top: 8px;
+        border-top: 1px solid var(--aho-outline);
+    }
+
+    .aho-candidate-scores > .aho-card-label {
+        flex-basis: 100%;
+    }
+}
+
 @media screen and (min-width: 992px) {
     .o_web_client:has(> .o_navbar .aho-sidebar-brand) {
         color: var(--aho-ink);
