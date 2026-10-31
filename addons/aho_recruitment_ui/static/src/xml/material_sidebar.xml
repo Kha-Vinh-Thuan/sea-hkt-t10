@@ -26,25 +26,17 @@
                 <nav class="aho-sidebar-menu" aria-label="Điều hướng tuyển dụng">
                     <div class="aho-sidebar-group">
                         <div class="aho-sidebar-section-label">Tuyển dụng</div>
-                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="jobMenu" label="'Vị trí tuyển dụng'" icon="'fa-briefcase'"/>
-                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="this.findAhoMenu('aho_recruitment_ui.menu_applicant_tracking')" label="'Ứng viên'" icon="'fa-address-book-o'"/>
+                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="jobMenu" label="'Vị trí tuyển dụng'" icon="'work'"/>
+                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="this.findAhoMenu('aho_recruitment_ui.menu_applicant_tracking')" label="'Ứng viên'" icon="'groups'"/>
                     </div>
-                    <t t-set="toolMenus" t-value="['rag_interview_agent.menu_rag_interview', 'rag_filter_agent.menu_rag_filter'].map((x) => this.findAhoMenu(x))"/>
-                    <div class="aho-sidebar-group" t-if="toolMenus.some(Boolean)">
-                        <div class="aho-sidebar-section-label">Công cụ AI</div>
-                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="toolMenus[0]" label="'Phỏng vấn tự động'" icon="'fa-microphone'"
-                           hint="'Danh sách các phiên ứng viên trả lời bằng giọng nói. Mời phỏng vấn từ hồ sơ ứng viên.'"/>
-                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="toolMenus[1]" label="'Chấm CV nhanh'" icon="'fa-file-text-o'"
-                           hint="'Công cụ độc lập: tải JD và CV dạng PDF để xếp hạng. Kết quả chưa gắn vào hồ sơ ứng viên.'"/>
-                    </div>
-                    <div class="aho-sidebar-group" t-if="setupMenus.some(Boolean)">
+                    <div class="aho-sidebar-group" t-if="setupMenus.some((menu) => !!menu)">
                         <div class="aho-sidebar-section-label">Thiết lập</div>
-                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="setupMenus[0]" label="'Phòng ban'" icon="'fa-sitemap'"/>
-                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="setupMenus[1]" label="'Quy trình tuyển dụng'" icon="'fa-columns'"/>
-                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="setupMenus[2]" label="'Lý do từ chối'" icon="'fa-ban'"/>
-                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="setupMenus[3]" label="'Thông tin công ty cho AI'" icon="'fa-building-o'"
+                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="setupMenus[0]" label="'Phòng ban'" icon="'business'"/>
+                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="setupMenus[1]" label="'Quy trình tuyển dụng'" icon="'view_kanban'"/>
+                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="setupMenus[2]" label="'Lý do từ chối'" icon="'block'"/>
+                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="setupMenus[3]" label="'Thông tin công ty cho AI'" icon="'business'"
                            hint="'Sứ mệnh, sản phẩm, văn hoá. Agent phỏng vấn đọc nội dung này cùng JD và CV.'"/>
-                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="setupMenus[4]" label="'Cài đặt'" icon="'fa-sliders'"/>
+                        <t t-call="aho_recruitment_ui.MaterialSidebarEntry" menu="setupMenus[4]" label="'Cài đặt'" icon="'tune'"/>
                     </div>
                 </nav>
             </t>

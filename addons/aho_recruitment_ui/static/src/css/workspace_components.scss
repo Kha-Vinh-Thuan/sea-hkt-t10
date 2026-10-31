@@ -230,29 +230,11 @@ body:has(.aho-sidebar-brand) {
             font-size: 12px;
             font-weight: 500;
             line-height: 1.6;
-            .fa { color: var(--aho-muted); }
+            .oi { color: var(--aho-muted); }
         }
-        .aho-job-summary {
-            display: -webkit-box;
-            margin: 0;
-            overflow: hidden;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            color: var(--aho-muted);
-            font-size: 13px;
-            line-height: 1.5;
-        }
-        .aho-job-summary-empty { font-style: italic; }
-        .aho-job-counts {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: var(--aho-space-3);
-            padding: var(--aho-space-3) 0;
-            border-block: 1px solid var(--aho-outline);
-        }
-        .aho-job-counts > div { display: flex; flex-direction: column; gap: 2px; }
-        .aho-job-counts strong, .aho-job-counts strong .o_field_widget { font-size: 20px; font-weight: 500; line-height: 1.2; }
-        .aho-job-counts > div > span { font-size: 12px; color: var(--aho-muted); }
+        .aho-job-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--aho-space-2) var(--aho-space-3); font-size: 13px; color: var(--aho-muted); }
+        .aho-job-status strong { color: var(--aho-ink); font-weight: 500; }
+        .aho-job-deadline .o_field_widget { display: inline; }
         .aho-job-footer {
             display: flex;
             flex-wrap: wrap;
@@ -269,6 +251,37 @@ body:has(.aho-sidebar-brand) {
         .aho-job-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--aho-space-2); }
         .aho-job-actions .btn { width: 100%; white-space: nowrap; }
     }
+
+    /* ---------- Stage funnel and warnings on the position card ---------- */
+    .aho-funnel { display: flex; flex-direction: column; gap: 2px; padding: var(--aho-space-2) 0; border-block: 1px solid var(--aho-outline); }
+    .aho-funnel-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+        align-items: center;
+        gap: var(--aho-space-2);
+        width: 100%;
+        padding: 5px var(--aho-space-1);
+        border: 0;
+        border-radius: var(--aho-radius);
+        background: transparent;
+        color: var(--aho-ink);
+        font-size: 13px;
+        text-align: left;
+    }
+    .aho-funnel-row:hover { background: var(--aho-sidebar-bg); }
+    .aho-funnel-row:focus-visible { outline: 2px solid var(--aho-accent); outline-offset: 1px; }
+    .aho-funnel-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .aho-funnel-track { height: 6px; border-radius: 3px; background: var(--aho-selected); overflow: hidden; }
+    .aho-funnel-bar { display: block; height: 100%; border-radius: 3px; background: var(--aho-ink); }
+    .aho-funnel-count { display: inline-flex; align-items: center; gap: 6px; min-width: 24px; justify-content: flex-end; font-weight: 500; }
+    .aho-funnel-empty { color: var(--aho-muted); }
+    .aho-funnel-empty .aho-funnel-bar { width: 0 !important; }
+    .aho-funnel-stale { color: var(--aho-yellow-fg); font-size: 12px; }
+    .aho-warnings { display: flex; flex-direction: column; gap: var(--aho-space-1); margin: var(--aho-space-2) 0 0; padding: 0; list-style: none; }
+    .aho-warning { display: flex; align-items: baseline; gap: var(--aho-space-2); padding: 6px var(--aho-space-2); border-radius: var(--aho-radius); font-size: 12px; line-height: 1.45; }
+    .aho-warning-risk { color: var(--aho-red-fg); background: var(--aho-red-bg); }
+    .aho-warning-watch { color: var(--aho-yellow-fg); background: var(--aho-yellow-bg); }
+    .aho-warning-more { color: var(--aho-muted); padding-top: 0; }
 
     /* ---------- Wide applicant list ---------- */
     .aho-applicant-tracking-list {

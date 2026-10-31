@@ -46,6 +46,10 @@ Mở [trang tuyển dụng](http://localhost:8070/odoo/recruitment). Lệnh có 
 
 Quy trình tuyển dụng dùng chung theo lĩnh vực, phiên bản yêu cầu và quyền agent đọc nguồn đó chưa được module UI này triển khai. Cần thống nhất model/schema với phần backend trước khi thêm màn hình quản lý. Talent Pool metadata-only cũng chưa được bảo vệ bởi module này; việc ẩn menu không thay quyền truy cập dữ liệu.
 
+## Card vị trí tuyển dụng
+
+Card hiển thị tình trạng của vị trí, không liệt kê ứng viên: số ứng viên theo từng giai đoạn (bấm để mở ứng viên của giai đoạn đó), tiến độ đã tuyển trên chỉ tiêu, và cảnh báo. Cảnh báo là luật cố định trong `models/job.py` (quá hạn, sắp đến hạn mà giai đoạn cuối chưa đủ người, pipeline dưới 3 ứng viên cho mỗi chỉ tiêu còn lại, ứng viên nằm yên quá số ngày của giai đoạn hoặc 7 ngày, 14 ngày không có hồ sơ mới, phiên phỏng vấn lỗi, thiếu JD hoặc HR phụ trách). Đây không phải mô hình dự đoán. “Chưa có cảnh báo” nghĩa là chưa có luật nào kích hoạt, không phải cam kết đúng tiến độ. Số liệu theo hồ sơ người xem có quyền truy cập. Trường `aho_target_date` (Hạn tuyển) được thêm vào `hr.job`; khi tích hợp phải nâng cấp addon để tạo cột dữ liệu. Core tự giảm `no_of_recruitment` khi tuyển được người: card dùng trường này làm chỉ tiêu còn lại, tổng mục tiêu hiển thị là số đã tuyển cộng chỉ tiêu còn lại.
+
 ## Kiểm tra sau khi tích hợp
 
 Trạng thái `ready` chỉ xác nhận đã tạo link; không dùng nhãn “Đã gửi” vì backend chưa cung cấp bằng chứng gửi thư mời. Icon dùng `.oi` + `data-icon` của Odoo 20; Font Awesome không có trong runtime đã kiểm tra.
@@ -53,7 +57,7 @@ Trạng thái `ready` chỉ xác nhận đã tạo link; không dùng nhãn “�
 1. Với hai vị trí và hồ sơ giả khác nhau, mở **Xem ứng viên** ở từng card: hồ sơ thuộc đúng vị trí, đổi card/list giữ bộ lọc.
 2. Mở **New** từ vị trí: vị trí tuyển dụng được điền đúng; đóng nháp khi không lưu. Luồng tạo đợt tuyển qua hub cần được kiểm tra riêng khi team nối xong.
 3. Kéo một card thử giữa hai giai đoạn rồi trả lại; mở profile, lịch sử AI và báo cáo vẫn được.
-4. Sidebar có ba nhóm: Tuyển dụng (Vị trí, Ứng viên), Công cụ AI (Phỏng vấn tự động, Chấm CV nhanh: công cụ độc lập, chưa gắn vào hồ sơ) và Thiết lập (Phòng ban, Quy trình tuyển dụng, Lý do từ chối, Thông tin công ty cho AI, Cài đặt; mục hiện theo quyền). Thu gọn còn icon 64px và mở lại được. Kiểm tra desktop và cửa sổ hẹp; không tràn trang, không mất điều hướng.
+4. Sidebar có hai nhóm: Tuyển dụng (Vị trí, Ứng viên) và Thiết lập (Phòng ban, Quy trình tuyển dụng, Lý do từ chối, Thông tin công ty cho AI, Cài đặt; mục hiện theo quyền). Phỏng vấn tự động không có mục riêng; lịch sử và báo cáo xem trong hồ sơ ứng viên. Công cụ chấm CV độc lập vẫn thuộc addon rag_filter_agent, chưa nối kết quả vào applicant và không có lối vào trong sidebar bản này. Thu gọn còn icon 64px và mở lại được. Kiểm tra desktop và cửa sổ hẹp; không tràn trang, không mất điều hướng.
 5. Bảng/search kế thừa primary từ Odoo: giữ đủ trường tùy chọn, multi-edit, ba thao tác header và bộ lọc core. Kiểm tra lại các view Calendar/Graph/Pivot/Activity; Calendar ở đây hiển thị hạn công việc, không phải bằng chứng đã có AI scheduling.
 6. Kiểm thử riêng scheduling, email, voice, provider và publishing bằng luồng tích hợp thật. Kết quả UI không chứng minh các thao tác đó thành công.
 
@@ -70,3 +74,12 @@ Dockerfile của main dùng `odoo:latest`. Kiểm tra database mới trong image
 ## Khi cần quay lại bản trước
 
 Giữ bản sao database trước khi tích hợp. Nếu chỉ chỉnh giao diện, quay lại commit UI đã kiểm tra, nâng cấp `aho_recruitment_ui` và tải lại assets. Nếu đổi model/schema/backend, dùng phương án migration/khôi phục DB của team; không xóa database hoặc gỡ addon AI để xử lý lỗi giao diện.
+
+## Kiểm tra gói bàn giao ngày 31/10/2026
+
+- Đã fetch main `f444ec8` trước khi chốt; main là ancestor của nhánh UI.
+- Đã sửa widget funnel cho OWL 3 (`useProps`, truy cập getter qua `this` trong template) và dùng bộ icon native Odoo.
+- Nâng cấp trên `hkt_ux_main_test` và cài mới trên `hkt_ui_final_check` trong image Odoo hiện tại.
+- Sáu kiểm tra quy tắc gồm quá hạn, counts cập nhật khi applicant thay đổi, tuyển đủ không trừ chỉ tiêu hai lần, hồ sơ nằm lâu, JD HTML trống và phiên lỗi. Các record kiểm tra được rollback, không gọi provider.
+- View core giữ đủ 34 trường bảng, 34 bộ lọc, ba thao tác header và bảy chế độ xem. Bấm funnel lọc đồng thời job/stage; bảng drill-down vẫn có Việc tiếp theo. Form company context và Hạn tuyển mở được; tab phỏng vấn trống có thông báo.
+- Chưa kiểm thử AI/provider, gửi thư mời, scheduling/publishing hoặc hệ thống tích hợp cuối. Bộ UI không thêm quyền đọc/sửa company hay dữ liệu ứng viên.
