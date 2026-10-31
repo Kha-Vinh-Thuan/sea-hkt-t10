@@ -7,7 +7,7 @@
         <field name="inherit_id" ref="hr.view_hr_job_form"/>
         <field name="arch" type="xml">
             <header position="inside">
-                <button name="action_ai_upload_cvs" type="object" string="Upload CVs" class="btn-primary"
+                <button name="action_ai_upload_cvs" type="object" string="Thêm CV" class="btn-primary"
                         invisible="not ai_enabled" groups="hr_recruitment.group_hr_recruitment_user"/>
                 <button name="action_ai_screen_existing" type="object" string="AI Screen Existing Applicants"
                         invisible="not ai_enabled" groups="base.group_no_one"/>
@@ -42,9 +42,10 @@
                     <separator string="Models: quality vs cost (★ = current champion)"/>
                     <field name="ai_model_board" nolabel="1"/>
                 </page>
-                <page string="AI Pipeline" name="ai_pipeline" groups="hr_recruitment.group_hr_recruitment_user">
+                <page string="Thiết lập AI" name="ai_pipeline" groups="hr_recruitment.group_hr_recruitment_user">
+                    <p class="text-muted">Bật quy trình AI cho vị trí này, sau đó thêm CV. Các tiêu chí và câu hỏi bên dưới sẽ được dùng để xử lý ứng viên của vị trí.</p>
                     <group>
-                        <group string="Pipeline">
+                        <group string="Cấu hình quy trình">
                             <field name="ai_enabled"/>
                             <field name="ai_max_turns" invisible="not ai_enabled"/>
                             <field name="ai_industry" invisible="not ai_enabled"/>
@@ -127,34 +128,40 @@
         <field name="inherit_id" ref="hr_recruitment.hr_applicant_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//header/button[@name='archive_applicant']" position="before">
-                <button string="Phỏng vấn AI" name="action_ai_interview_now" type="object" class="btn-primary"
-                        icon="fa-microphone" invisible="not active or ai_step in ('interviewed', 'reported', 'decided')"/>
-                <button string="Approve (next round)" name="action_ai_approve" type="object" class="btn-primary"
+                <button string="Mở phỏng vấn ngay (demo)" name="action_ai_interview_now" type="object" class="btn-secondary"
+                        icon="fa-microphone" help="Mở phòng phỏng vấn ngay và bỏ qua bước lọc CV, đặt lịch."
+                        invisible="not active or ai_step in ('interviewed', 'reported', 'decided')"/>
+                <button string="Duyệt sang vòng tiếp" name="action_ai_approve" type="object" class="btn-primary"
                         invisible="ai_step != 'reported'"/>
-                <button string="Reject" name="action_ai_reject" type="object" invisible="ai_step != 'reported'"/>
-                <button string="Interview Anyway" name="action_ai_override_filter" type="object"
+                <button string="Từ chối" name="action_ai_reject" type="object" invisible="ai_step != 'reported'"/>
+                <button string="Cho phỏng vấn dù chưa đạt lọc CV" name="action_ai_override_filter" type="object"
                         invisible="ai_step != 'screened_out'"/>
-                <button string="Reschedule" name="action_ai_reschedule" type="object"
+                <button string="Đổi lịch" name="action_ai_reschedule" type="object"
                         invisible="ai_step not in ('scheduled', 'scheduling', 'no_show')"/>
-                <button string="Retry AI" name="action_ai_retry" type="object" invisible="ai_step != 'error'"/>
+                <button string="Thử lại bước AI" name="action_ai_retry" type="object" invisible="ai_step != 'error'"/>
                 <button string="Start AI Pipeline" name="action_ai_start" type="object"
                         invisible="ai_step or not active" groups="base.group_no_one"/>
             </xpath>
             <xpath expr="//notebook" position="before">
-                <div class="alert alert-info d-flex gap-4 flex-wrap mb-2" role="status" invisible="not ai_step">
-                    <span><b>AI step:</b> <field name="ai_step" readonly="1" class="d-inline"/></span>
-                    <span invisible="not ai_match_score"><b>CV match:</b> <field name="ai_match_score" readonly="1" class="d-inline"/>/100</span>
-                    <span invisible="not ai_interview_start"><b>Interview:</b> <field name="ai_interview_start" readonly="1" class="d-inline"/></span>
-                    <span invisible="not ai_score"><b>Interview score:</b> <field name="ai_score" readonly="1" class="d-inline"/>/100</span>
-                    <span invisible="not ai_recommendation"><b>AI suggests:</b>
+                <div class="alert alert-info mb-2" role="status" invisible="not ai_step">
+                    <div class="d-flex gap-4 flex-wrap">
+                        <span><b>Trạng thái AI:</b> <field name="ai_step" readonly="1" class="d-inline"/></span>
+                        <span invisible="not ai_interview_start"><b>Lịch phỏng vấn:</b> <field name="ai_interview_start" readonly="1" class="d-inline"/></span>
+                        <span invisible="not ai_match_score"><b>Đối chiếu CV:</b> <field name="ai_match_score" readonly="1" class="d-inline"/>/100</span>
+                        <span invisible="not ai_score"><b>Kết quả phỏng vấn:</b> <field name="ai_score" readonly="1" class="d-inline"/>/100</span>
+                    </div>
+                    <p class="mb-0 mt-2" invisible="ai_step != 'reported'">Báo cáo đã sẵn sàng. Người phụ trách xem bằng chứng và quyết định bước tiếp theo.</p>
+                    <p class="mb-0 mt-2" invisible="ai_step != 'error'">Bước AI gặp lỗi. Kiểm tra thông tin ứng viên trước khi thử lại.</p>
+                    <p class="mb-0 mt-2" invisible="ai_step != 'screened_out'">Ứng viên chưa qua bước lọc CV. Người phụ trách có thể xem lại và cho phỏng vấn nếu phù hợp.</p>
+                    <div class="mt-2" invisible="not ai_recommendation"><b>AI đề xuất:</b>
                         <field name="ai_recommendation" readonly="1" widget="badge" class="d-inline"
                                decoration-success="ai_recommendation == 'approve'" decoration-danger="ai_recommendation == 'reject'"/>
                         <field name="ai_verdict" readonly="1" class="d-inline text-muted"/>
-                    </span>
+                    </div>
                 </div>
             </xpath>
             <xpath expr="//notebook" position="inside">
-                <page string="AI Pipeline" name="ai_pipeline" invisible="not ai_step">
+                <page string="Kết quả AI" name="ai_pipeline" invisible="not ai_step">
                     <div class="alert alert-warning" role="alert" invisible="not ai_integrity_summary or ai_integrity_score &gt;= 80">
                         <b>Nghi vấn gian lận (<field name="ai_integrity_score" readonly="1" class="d-inline"/>/100):</b>
                         <field name="ai_integrity_summary" readonly="1" class="d-inline"/>
@@ -165,7 +172,7 @@
                         <field name="ai_summary" readonly="1" invisible="not ai_summary"/>
                         <field name="ai_transcript_text" readonly="1" invisible="not ai_transcript_text"/>
                         <field name="ai_feedback" invisible="ai_step not in ('reported', 'decided', 'screened_out')"
-                               placeholder="Where did the AI get this candidate wrong? The agents learn from this."/>
+                               placeholder="Ghi lại điều AI hiểu sai hoặc bằng chứng cần xem thêm."/>
                     </group>
                     <group groups="base.group_no_one">
                         <group string="Filter">
@@ -233,14 +240,14 @@
 
     <!-- ============ AI Pipeline board ============ -->
     <record id="action_ai_pipeline" model="ir.actions.act_window">
-        <field name="name">AI Pipeline</field>
+        <field name="name">Ứng viên trong quy trình AI</field>
         <field name="res_model">hr.applicant</field>
         <field name="view_mode">list,kanban,form,pivot,graph</field>
         <field name="domain">[('ai_step', '!=', False)]</field>
         <field name="context">{'group_by': 'ai_step'}</field>
         <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">No candidates in the AI pipeline yet</p>
-            <p>Open a job position, enable the AI Pipeline tab, then use "Upload CVs".</p>
+            <p class="o_view_nocontent_smiling_face">Chưa có ứng viên trong quy trình AI</p>
+            <p>Mở một vị trí tuyển dụng, bật Thiết lập AI, rồi chọn Thêm CV.</p>
         </field>
     </record>
 
@@ -281,8 +288,8 @@
         </field>
     </record>
 
-    <menuitem id="menu_ai_root" name="AI Pipeline" parent="hr_recruitment.menu_hr_recruitment_root" sequence="2"/>
+    <menuitem id="menu_ai_root" name="AI Hiring Operator" parent="hr_recruitment.menu_hr_recruitment_root" sequence="2"/>
     <menuitem id="menu_ai_jobs" name="Job Setup" parent="menu_ai_root" action="hr_recruitment.action_hr_job_config" sequence="0" groups="base.group_no_one"/>
-    <menuitem id="menu_ai_pipeline" name="Candidates" parent="menu_ai_root" action="action_ai_pipeline" sequence="1"/>
+    <menuitem id="menu_ai_pipeline" name="Ứng viên" parent="menu_ai_root" action="action_ai_pipeline" sequence="1"/>
     <menuitem id="menu_ai_log" name="Agent Activity" parent="menu_ai_root" action="action_ai_log" sequence="2" groups="base.group_no_one"/>
 </odoo>

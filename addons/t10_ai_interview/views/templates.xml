@@ -6,27 +6,32 @@
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-                <title>Online Interview</title>
+                <title>Đặt lịch phỏng vấn</title>
                 <style>
                     :root { --bg:#f6f7fb; --card:#fff; --text:#1f2330; --muted:#6b7080; --accent:#714b67; --me:#ede4ea; --border:#e3e5ec; --rec:#d23f3f; }
                     @media (prefers-color-scheme: dark) { :root { --bg:#14151a; --card:#1d1f26; --text:#e8e9ee; --muted:#9a9eab; --accent:#c69bbb; --me:#3a2c36; --border:#2c2f38; } }
                     * { box-sizing: border-box; }
                     body { margin:0; font:16px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--text); }
-                    main { max-width:760px; margin:0 auto; padding:24px 16px; min-height:100vh; display:flex; flex-direction:column; gap:16px; }
+                    main { max-width:800px; margin:0 auto; padding:32px 16px 56px; min-height:100vh; display:flex; flex-direction:column; gap:16px; }
                     .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; }
-                    h1 { font-size:20px; margin:0 0 4px; } h2 { font-size:16px; margin:0 0 12px; } p { margin:0 0 8px; }
+                    h1 { font-size:26px; line-height:1.25; margin:0 0 6px; } h2 { font-size:20px; margin:0 0 12px; } p { margin:0 0 8px; }
                     .muted { color:var(--muted); font-size:14px; }
-                    #log { flex:1; display:flex; flex-direction:column; gap:12px; overflow-y:auto; }
+                    .step { color:var(--accent); font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+                    #log { display:flex; flex-direction:column; gap:12px; max-height:260px; overflow-y:auto; }
                     .msg { max-width:85%; padding:10px 14px; border-radius:12px; white-space:pre-wrap; background:var(--card); border:1px solid var(--border); }
                     .msg.me { align-self:flex-end; background:var(--me); border-color:transparent; }
                     form { display:flex; gap:8px; flex-wrap:wrap; }
-                    textarea { flex:1 1 240px; resize:vertical; min-height:56px; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--text); font:inherit; }
+                    textarea { flex:1 1 240px; resize:vertical; min-height:72px; padding:12px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--text); font:inherit; }
                     button { padding:10px 18px; border:0; border-radius:10px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
-                    button.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+                    button.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); text-align:left; min-height:52px; }
+                    button.ghost:hover { background:var(--me); }
                     button.rec { background:var(--rec); }
                     button:disabled { opacity:.5; cursor:default; }
-                    .slots { display:grid; gap:8px; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); margin-bottom:12px; }
+                    button:focus-visible, textarea:focus-visible { outline:3px solid var(--accent); outline-offset:3px; }
+                    .slots { display:grid; gap:10px; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); margin:16px 0 20px; }
                     label { display:flex; gap:8px; align-items:flex-start; margin:12px 0; }
+                    .booking { padding:12px 14px; border-radius:10px; background:var(--me); margin:12px 0; }
+                    @media (max-width:520px) { form button { width:100%; } .slots { grid-template-columns:1fr; } }
                     [hidden] { display:none !important; }
                 </style>
             </head>
@@ -37,8 +42,8 @@
     <template id="interview_closed">
         <t t-call="t10_ai_interview.interview_layout">
             <div class="card">
-                <h1>Link unavailable</h1>
-                <p class="muted">This interview has finished or the link is invalid. / Buổi phỏng vấn đã kết thúc hoặc đường dẫn không hợp lệ.</p>
+                <h1>Đường dẫn không còn hiệu lực</h1>
+                <p class="muted">Buổi phỏng vấn đã kết thúc hoặc đường dẫn không đúng. Vui lòng liên hệ người phụ trách tuyển dụng nếu bạn cần hỗ trợ.</p>
             </div>
         </t>
     </template>
@@ -46,6 +51,7 @@
     <template id="interview_page">
         <t t-call="t10_ai_interview.interview_layout">
             <div class="card">
+                <p class="step">Lịch phỏng vấn</p>
                 <h1><t t-out="applicant.job_id.name"/></h1>
                 <p class="muted"><t t-out="applicant.company_id.name"/> · <t t-out="applicant.partner_name"/></p>
             </div>
@@ -53,17 +59,21 @@
             <!-- Scheduling -->
             <t t-if="mode == 'schedule'">
                 <div class="card">
-                    <h2 t-if="booked">Lịch hiện tại / Current booking: <t t-out="booked"/> (<t t-out="tz"/>)</h2>
-                    <h2 t-else="">Chọn giờ phỏng vấn / Pick an interview time (<t t-out="tz"/>)</h2>
-                    <div class="slots" id="slots">
+                    <h2 t-if="booked">Lịch đã xác nhận</h2>
+                    <h2 t-else="">Chọn thời gian phù hợp</h2>
+                    <p t-if="booked" class="booking"><strong><t t-out="booked"/></strong> (<t t-out="tz"/>)</p>
+                    <p t-if="booked" class="muted">Nếu muốn đổi lịch, chọn một giờ khác hoặc nhắn cho trợ lý bên dưới.</p>
+                    <p t-else="" class="muted">Các giờ dưới đây hiển thị theo múi giờ <t t-out="tz"/>. Chọn một giờ để xác nhận lịch.</p>
+                    <div class="slots" id="slots" aria-label="Giờ phỏng vấn có thể chọn">
                         <t t-foreach="slots" t-as="slot">
-                            <button class="ghost" t-att-data-index="slot_index"><t t-out="slot"/></button>
+                            <button type="button" class="ghost" t-att-data-index="slot_index"><t t-out="slot"/></button>
                         </t>
                     </div>
-                    <p class="muted">Bận hoặc muốn giờ khác? Nhắn ở đây. / Busy or need another time? Tell us here.</p>
-                    <div id="log"></div>
+                    <h2>Cần giờ khác?</h2>
+                    <p class="muted">Nhắn thời gian bạn có thể tham gia. Trợ lý sẽ kiểm tra trước khi xác nhận.</p>
+                    <div id="log" role="log" aria-live="polite"></div>
                     <form id="form">
-                        <textarea id="input" maxlength="1000" aria-label="Message" placeholder="VD: Tôi bận thứ 3, chiều thứ 5 lúc 3h được không?"></textarea>
+                        <textarea id="input" maxlength="1000" aria-label="Tin nhắn về lịch phỏng vấn" placeholder="Ví dụ: Tôi bận thứ Ba, chiều thứ Năm lúc 15:00 có được không?"></textarea>
                         <button type="submit" id="send">Gửi</button>
                     </form>
                 </div>
@@ -99,7 +109,7 @@
                         const renderSlots = (slots) =&gt; {
                             slotsBox.replaceChildren(...slots.map((s, i) =&gt; {
                                 const b = document.createElement('button');
-                                b.className = 'ghost'; b.textContent = s; b.dataset.index = i; return b;
+                                b.type = 'button'; b.className = 'ghost'; b.textContent = s; b.dataset.index = i; return b;
                             }));
                         };
                         const handle = (res) =&gt; {
