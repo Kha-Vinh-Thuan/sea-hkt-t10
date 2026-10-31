@@ -81,6 +81,7 @@ class HrApplicant(models.Model):
     _inherit = 'hr.applicant'
 
     ai_step = fields.Selection(STEPS, string="AI Step", copy=False, tracking=True, index=True)
+    ai_next_action = fields.Char("Next Action", compute="_compute_ai_next_action")
     ai_retry_step = fields.Char(copy=False)
     ai_token = fields.Char(copy=False, groups='hr_recruitment.group_hr_recruitment_user', index='btree_not_null')
     ai_url = fields.Char("Candidate Link", compute='_compute_ai_url')
@@ -125,6 +126,30 @@ class HrApplicant(models.Model):
     ai_booked_at = fields.Datetime(copy=False)
     ai_reported_at = fields.Datetime(copy=False)
     ai_decided_at = fields.Datetime(copy=False)
+
+    @api.depends('ai_step', 'active', 'recruiter_id')
+    def _compute_ai_next_action(self):
+        actions = {
+            'new': _("AI đang chờ lọc CV"),
+            'screened_out': _("HR xem lại CV và quyết định có cho phỏng vấn"),
+            'passed': _("AI chuẩn bị đề xuất lịch phỏng vấn"),
+            'scheduling': _("Chờ ứng viên chọn giờ; HR theo dõi lịch"),
+            'scheduled': _("Chờ buổi phỏng vấn đã xác nhận"),
+            'interviewing': _("Chờ ứng viên hoàn tất phỏng vấn"),
+            'interviewed': _("AI đang chuẩn bị báo cáo phỏng vấn"),
+            'reported': _("Người phụ trách xem bằng chứng và quyết định qua vòng"),
+            'decided': _("Theo dõi giai đoạn tuyển dụng tiếp theo trên Odoo"),
+            'no_show': _("HR xem lại và quyết định có đổi lịch"),
+            'declined': _("HR ghi nhận việc ứng viên từ chối"),
+            'error': _("HR kiểm tra lỗi và thử lại bước AI"),
+        }
+        for applicant in self:
+            if not applicant.active:
+                applicant.ai_next_action = _("Hồ sơ đã lưu trữ")
+            elif applicant.ai_step != 'decided' and not applicant.recruiter_id:
+                applicant.ai_next_action = _("HR lead cần phân người phụ trách")
+            else:
+                applicant.ai_next_action = actions.get(applicant.ai_step, "")
 
     @api.depends('ai_token')
     def _compute_ai_url(self):
