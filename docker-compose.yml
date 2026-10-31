@@ -14,7 +14,7 @@ services:
     depends_on: [db]
     command: ["--dev=reload,xml,qweb"]
     ports:
-      - "8069:8069"
+      - "8070:8069"
     environment:
       HOST: db
       USER: odoo
@@ -49,6 +49,7 @@ services:
       - ./addons/hr_timesheet_attendance:/usr/lib/python3/dist-packages/odoo/addons/hr_timesheet_attendance
       - ./addons/hr_work_entry:/usr/lib/python3/dist-packages/odoo/addons/hr_work_entry
       - ./addons/rag_interview_agent:/mnt/extra-addons/rag_interview_agent
+      - ./addons/rag_filter_agent:/mnt/extra-addons/rag_filter_agent
 
 volumes:
   db-data:

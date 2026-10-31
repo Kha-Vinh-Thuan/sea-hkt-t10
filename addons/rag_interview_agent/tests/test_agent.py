@@ -1,4 +1,5 @@
 import importlib.util
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -6,6 +7,9 @@ _spec = importlib.util.spec_from_file_location(
     'rag_agent_under_test', Path(__file__).parents[1] / 'models' / 'agent.py')
 agent = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(agent)
+sys.path.insert(0, str(Path(__file__).parents[1]))
+from rag_interview_application.dto.requests import IndexRequest, InterviewTurnRequest
+from rag_interview_application.services.interview_service import InterviewService
 
 
 def test_chunks_keep_long_text_and_sources():
@@ -59,3 +63,22 @@ def test_realtime_secret_never_exposes_api_key():
     with patch.object(agent, '_post', return_value={'value': 'ephemeral'} ) as post:
         assert agent.realtime_secret('gpt-realtime', 'marin', 'gpt-4o-transcribe') == 'ephemeral'
         assert post.call_args.args[2] == 'OPENAI_API_KEY'
+
+
+def test_nlayer_interview_service_returns_dtos():
+    service = InterviewService(
+        lambda docs, model: [{'source': 'cv', 'text': 'x', 'vec': [1.0]}],
+        lambda cfg, ctx, index, transcript, asked, answer: {
+            'question': 'Tell me about your experience.', 'done': False, 'action': 'new_topic',
+            'topic': 'experience', 'topic_no': 1, 'score': 0, 'evidence': '', 'flags': [],
+        },
+        lambda model, ctx, docs, transcript, flags: {
+            'summary': 'ok', 'score': 80, 'recommendation': 'yes', 'strengths': ['Java'],
+            'concerns': [], 'cv_claims': ['confirmed'], 'cv_consistency': 'consistent', 'screening': [],
+        },
+        lambda model, voice, transcribe, language: 'ephemeral',
+    )
+    index = service.build_index(IndexRequest({'cv': 'text'}, 'embed'))
+    turn = service.next_turn(InterviewTurnRequest({}, {}, list(index.items), []))
+    assert index.items[0]['source'] == 'cv'
+    assert turn.to_public_dict()['question'].startswith('Tell me')

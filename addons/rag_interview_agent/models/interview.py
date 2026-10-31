@@ -8,6 +8,8 @@ from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.tools import html2plaintext
 
+from ..rag_interview_application.dto.requests import IndexRequest, InterviewTurnRequest, ReportRequest, RealtimeSecretRequest
+from ..rag_interview_application.services.interview_service import InterviewService
 from . import agent
 
 _logger = logging.getLogger(__name__)
@@ -118,6 +120,10 @@ class RagInterview(models.Model):
         agent.configure_keys(params.get('rag_interview.openrouter_key') or os.environ.get('OPENROUTER_API_KEY', ''),
                              params.get('rag_interview.openai_key') or os.environ.get('OPENAI_API_KEY', ''))
 
+    @staticmethod
+    def _service():
+        return InterviewService(agent.build_index, agent.next_turn, agent.report, agent.realtime_secret)
+
     @api.model_create_multi
     def create(self, vals_list):
         records = super().create([dict(v, token=secrets.token_urlsafe(32)) for v in vals_list])
@@ -141,9 +147,10 @@ class RagInterview(models.Model):
                               "Companies), the job description, and attach the CV to the applicant.",
                               ', '.join(missing)))
         try:
-            index = agent.build_index(docs, self._cfg('embed_model'))
+            index = self._service().build_index(IndexRequest(docs, self._cfg('embed_model'))).items
         except agent.AgentError as e:
             raise UserError(_("Could not index the documents: %s", e)) from e
+        index = list(index)
         for item in index:
             item['vec'] = [round(x, 5) for x in item['vec']]
         self.sudo().write({'docs': docs, 'index': index})
@@ -164,8 +171,8 @@ class RagInterview(models.Model):
 
     def _voice_secret(self):
         self._configure_keys()
-        return agent.realtime_secret(self._cfg('realtime_model'), self._cfg('realtime_voice'),
-                                     self._cfg('transcribe_model'))
+        return self._service().realtime_secret(RealtimeSecretRequest(
+            self._cfg('realtime_model'), self._cfg('realtime_voice'), self._cfg('transcribe_model'))).secret
 
     def _ctx(self):
         return {'job': self.job_id.name or '', 'company': self.company_id.name or '',
@@ -188,9 +195,10 @@ class RagInterview(models.Model):
             return {'question': self.pending_question, 'done': False}
         if self.state != 'ready':
             raise UserError(_("closed"))
-        res = agent.next_turn(self._turn_cfg(), self._ctx(), self.index, [])
-        self.write(dict(self._pending(res), state='running', consent_at=fields.Datetime.now()))
-        return {'question': res['question'], 'done': res['done']}
+        res = self._service().next_turn(InterviewTurnRequest(
+            self._turn_cfg(), self._ctx(), self.index, []))
+        self.write(dict(self._pending(res.__dict__), state='running', consent_at=fields.Datetime.now()))
+        return res.to_public_dict()
 
     def _turn_cfg(self):
         self._configure_keys()
@@ -204,16 +212,17 @@ class RagInterview(models.Model):
         answer = answer[:agent.MAX_ANSWER]
         asked = {'question': self.pending_question, 'topic': self.pending_topic or '',
                  'topic_no': self.pending_topic_no}
-        res = agent.next_turn(self._turn_cfg(), self._ctx(), self.index, self._transcript(), asked, answer)
+        res = self._service().next_turn(InterviewTurnRequest(
+            self._turn_cfg(), self._ctx(), self.index, self._transcript(), asked, answer))
         self.env['rag.interview.turn'].create({
             'interview_id': self.id, 'question': self.pending_question, 'answer': answer,
             'topic': asked['topic'], 'topic_no': asked['topic_no'],
-            'score': res['score'], 'evidence': res['evidence'], 'flags': ', '.join(res['flags'])})
-        flags = sorted(set(filter(None, (self.flags or '').split(', '))) | set(res['flags']))
-        self.write(dict(self._pending(res), flags=', '.join(flags), state='done' if res['done'] else 'running'))
-        if res['done']:
+            'score': res.score, 'evidence': res.evidence, 'flags': ', '.join(res.flags)})
+        flags = sorted(set(filter(None, (self.flags or '').split(', '))) | set(res.flags))
+        self.write(dict(self._pending(res.__dict__), flags=', '.join(flags), state='done' if res.done else 'running'))
+        if res.done:
             self.env.ref('rag_interview_agent.ir_cron_rag_report')._trigger()
-        return {'question': res['question'], 'done': res['done']}
+        return res.to_public_dict()
 
     # ------------------------------------------------------------------ report
 
@@ -222,21 +231,22 @@ class RagInterview(models.Model):
         self._configure_keys()
         for s in self.search([('state', '=', 'done')], limit=5):
             try:
-                rep = agent.report(s._cfg('report_model'), s._ctx(), s.docs, s._transcript(), s.flags or '')
+                rep = self._service().write_report(ReportRequest(
+                    s._cfg('report_model'), s._ctx(), s.docs, s._transcript(), s.flags or ''))
             except agent.AgentError as e:
                 _logger.warning("RAG interview %s report failed: %s", s.id, e)
                 s.write({'state': 'error', 'error': str(e)})
                 continue
-            s.write({'state': 'reported', 'error': False, 'score': rep['score'],
-                     'recommendation': rep['recommendation'], 'summary': rep['summary'],
-                     'strengths': '\n'.join(f"- {x}" for x in rep['strengths']),
-                     'concerns': '\n'.join(f"- {x}" for x in rep['concerns']),
-                     'cv_claims': '\n'.join(f"- {x}" for x in rep['cv_claims']),
-                     'cv_consistency': rep['cv_consistency'],
-                     'screening': '\n'.join(f"- {x}" for x in rep['screening'])})
+            s.write({'state': 'reported', 'error': False, 'score': rep.score,
+                     'recommendation': rep.recommendation, 'summary': rep.summary,
+                     'strengths': '\n'.join(f"- {x}" for x in rep.strengths),
+                     'concerns': '\n'.join(f"- {x}" for x in rep.concerns),
+                     'cv_claims': '\n'.join(f"- {x}" for x in rep.cv_claims),
+                     'cv_consistency': rep.cv_consistency,
+                     'screening': '\n'.join(f"- {x}" for x in rep.screening)})
             s.applicant_id.message_post(body=_("AI interview: %(r)s, %(s)s/100. %(sum)s",
-                                               r=dict(s._fields['recommendation'].selection)[rep['recommendation']],
-                                               s=rep['score'], sum=rep['summary']))
+                                               r=dict(s._fields['recommendation'].selection)[rep.recommendation],
+                                               s=rep.score, sum=rep.summary))
             self.env.cr.commit()  # one finished report must not be lost to a later failure
 
     def action_retry_report(self):
